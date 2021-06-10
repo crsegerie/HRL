@@ -76,6 +76,7 @@ class Environment:
             return True
 
     def plot(self, save_fig=False):
+        """Plot the environment, but not the Agent."""
         lab = list(self.coord_env.keys())
         for i in range(0, len(lab) - 2, 2):
             plt.plot([self.coord_env[lab[i]], self.coord_env[lab[i + 2]]],
@@ -95,29 +96,84 @@ class Environment:
 
 
 class Agent:
-    def __init__(self, x_star, a, angle_visual_field):
+    def __init__(self, x_star, c, angle_visual_field):
+        """
+        Initialize the Agent
+
+        ...
+
+        Variables
+        ---------
+        x_star: np.array
+            homeostatic set point.
+        c: np.array
+            homogeneus to the inverse of a second. For example c = (-0.1, ...)
+            says that the half-life (like a radioactive element) of the first
+            ressource is equal to 10 seconds.
+        angle_visual_field: float
+            in radiant. Not implemented.
+        """
+
         self.x_star = x_star
         self.zeta = np.zeros(9)
         self.zeta[6] = 3  # initialization position for the agent
         self.zeta[7] = 2  # initialization position for the agent
-        self.a = a
+        self.c = c
         self.angle_visual_field = angle_visual_field
 
     def dynamics(self, zeta, u):
+        """
+        Return the Agent's dynamics which is represented by the f function.
+
+        ...
+
+        Variables
+        ---------
+        zeta: np.array
+            whole world state.
+        u: np.array
+            control. (freewill of the agent)
+        """
         f = np.zeros(zeta.shape)
-        f[:6] = self.a[:6] * (zeta[:6] + self.x_star) + \
+        # Those first coordinate are homeostatic, and with a null control, zeta tends to zero.
+        # coordinate 0 : resource 1
+        # coordinate 1 : resource 2
+        # coordinate 2 : resource 3
+        # coordinate 3 : resource 4
+        # coordinate 4 : muscular energy (muscular resource)
+        # coordinate 6 : aware energy (aware resource) : low if sleepy.
+        f[:6] = self.c[:6] * (zeta[:6] + self.x_star) + \
             u[:6] * (zeta[:6] + self.x_star)
+
+        # Those coordinates are not homeostatic : they represent the x-speed, y-speed, and angular-speed.
+        # The agent can choose himself his speed.
         f[6:9] = u[6:9]
         return f
 
     def drive(self, zeta, epsilon=0.001):
+        """
+        Return the Agent's drive which is the distance between the agent's state and the homeostatic set point.
+        ...
+
+        Variables
+        ---------
+        zeta: np.array
+            whole world state.
+        u: np.array
+            control. (freewill of the agent)
+        """
+        # in the delta, we only count the internal state.
+        # The tree last coordinate do not count in the homeostatic set point.
         delta = zeta[:6]
         drive_delta = np.sqrt(epsilon + np.dot(delta, delta))
         return drive_delta
 
 
 class Net_J(nn.Module):
-    """"""
+    """ Net_J is the tentative of the agent to learn the world.
+    It is an approximation of the real J, which is the expected drive (-expected reward).
+    The agents wants to minimize this drive.
+    """
 
     def __init__(self, n_neurons, dropout_rate):
         super(Net_J, self).__init__()
@@ -128,6 +184,7 @@ class Net_J(nn.Module):
         self.fc3 = nn.Linear(n_neurons, 1)
 
     def forward(self, x):
+        """Return a real number. Not a vector"""
         x = self.fc1(x)
         x = torch.sigmoid(x)
         x = self.dropout1(x)
@@ -140,6 +197,17 @@ class Net_J(nn.Module):
 
 
 class Net_f(nn.Module):
+    """ f is homogeneous to the speed of change of Zeta.
+    For example the rate of consumption of glucose
+    or the rate of consumption of water
+
+    d_zeta = f((zeta, u)) * dt.
+    Net_f is the tentative of the agent to modelise f.
+
+    Zeta is all there is. It is the whole world
+    zeta = internal + external state
+    """
+
     def __init__(self, n_neurons, dropout_rate):
         super(Net_f, self).__init__()
         self.fc1 = nn.Linear(9 + 14, n_neurons)
@@ -149,6 +217,7 @@ class Net_f(nn.Module):
         self.fc3 = nn.Linear(n_neurons, 9)
 
     def forward(self, x):
+        """Return a speed homogeneous to zeta."""
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout1(x)
@@ -159,12 +228,12 @@ class Net_f(nn.Module):
         return output
 
 
-# Algorithm
-
 class Algorithm:
     def __init__(self, env, agent, net_J, net_f,
                  time_step, eps, gamma, tau, N_iter, N_save_weights, N_print, learning_rate,
-                 actions_controls, constraints, min_time_sleep, max_tired):
+                 actions_controls, constraints, min_time_sleep, max_tired, asym_coeff):
+        """
+        """
 
         self.env = env
         self.agent = agent
@@ -172,187 +241,365 @@ class Algorithm:
         self.net_f = net_f
 
         self.time_step = time_step
-        self.eps = eps
-        self.gamma = gamma
-        self.tau = tau
+        self.eps = eps  # probability to choose an action ramdomly.
+        self.gamma = gamma  # The discount factor.
+        self.tau = tau  # the smoothing update parameter. Not implemented.
         self.N_iter = N_iter
+        # Periodic saving of the weights of J and f.
         self.N_save_weights = N_save_weights
-        self.N_print = N_print
+        self.N_print = N_print  # Periodic print of the zeta.
         self.learning_rate = learning_rate
         self.optimizer_J = torch.optim.Adam(
             self.net_J.parameters(), lr=self.learning_rate)
         self.optimizer_f = torch.optim.Adam(
             self.net_f.parameters(), lr=self.learning_rate)
 
+        # a list mapping the action to a control.
         self.actions_controls = actions_controls
+        # a vector representing the physical limits. Example: you cannot eat more than 6 kg of food...
         self.constraints = constraints
+        # An agent cannot do micro sleep. He cannot wake during a minimum amount of time.
         self.min_time_sleep = min_time_sleep
+        # If the agent is too tired, he automatically sleeps.
         self.max_tired = max_tired
 
+        # coeffiscient to make the loss and thus the gradient larger  for small actions
+        self.asym_coeff = asym_coeff
+
     def actions_possible(self):
-        # + 4 for the action of going to a resource after seeing it
+        """
+        Return a list of bool showing which action is permitted or not.
+
+        possible_actions = [
+            # walking
+            # running
+            # turning an angle to the left
+            # turning an angle to the right
+            # sleeping
+            # get resource 1
+            # get resource 2
+            # get resource 3
+            # get resource 4
+            # not doing anything
+        ]
+        + 4 for the action of going to a resource after seeing it
+        """
+        # There are 4 more possible actions:
+        # The 4 last actions correspond to going direcly to each of the 4 ressources if possible.
         possible_actions = [True for i in range(
             len(self.actions_controls) + 4)]
 
+        # If the agent is too tired in his muscle
         if self.agent.zeta[4] >= self.constraints[0]:
-            possible_actions[0] = False
-        if not self.env.is_point_inside(self.agent.zeta[6] + self.time_step * self.actions_controls[0][6] * np.cos(self.agent.zeta[8]), self.agent.zeta[7] + self.time_step * self.actions_controls[0][7] * np.sin(self.agent.zeta[8])):
+            # walking is no more possible
             possible_actions[0] = False
 
+        # He cannot escape the environment when walking.
+        x_walk = self.agent.zeta[6] + self.time_step * \
+            self.actions_controls[0][int(self.agent.zeta[8])][6]
+        y_walk = self.agent.zeta[7] + self.time_step * \
+            self.actions_controls[0][int(self.agent.zeta[8])][7]
+        if not self.env.is_point_inside(x_walk, y_walk):
+            possible_actions[0] = False
+
+        # if the agent is too tired, we cannot run.
         if self.agent.zeta[4] >= self.constraints[1]:
             possible_actions[1] = False
-        if not self.env.is_point_inside(self.agent.zeta[6] + self.time_step * self.actions_controls[1][6] * np.cos(self.agent.zeta[8]), self.agent.zeta[7] + self.time_step * self.actions_controls[1][7] * np.sin(self.agent.zeta[8])):
+
+        # He cannot escape the environment when running.
+        x_run = self.agent.zeta[6] + self.time_step * \
+            self.actions_controls[1][int(self.agent.zeta[8])][6]
+        y_run = self.agent.zeta[7] + self.time_step * \
+            self.actions_controls[1][int(self.agent.zeta[8])][7]
+
+        if not self.env.is_point_inside(x_run, y_run):
             possible_actions[1] = False
 
+        # He cannot rotate trigonometrically if too tired.
         if self.agent.zeta[4] >= self.constraints[2]:
             possible_actions[2] = False
 
+        # He cannot rotate non-trigonometrically if too tired.
         if self.agent.zeta[4] >= self.constraints[3]:
             possible_actions[3] = False
 
+        # The agent cannot sleep if he is not enouth tired.
         if self.agent.zeta[5] <= self.constraints[4]:
             possible_actions[4] = False
+
+        # If the agent is too sleepy, the only possible action is to sleep.
         if self.agent.zeta[5] >= self.max_tired:
             possible_actions = [False for i in range(
                 len(self.actions_controls) + 4)]
             possible_actions[4] = True
 
-        if self.agent.zeta[0] >= self.constraints[5]:
-            possible_actions[5] = False
-        if (self.agent.zeta[6] - self.env.coord_circ['circle_1'][0])**2 + (self.agent.zeta[7] - self.env.coord_circ['circle_1'][1])**2 > self.env.coord_circ['circle_1'][2]**2:
-            possible_actions[5] = False
+        def is_near_ressource(circle):
+            """circle= (str) 'circle_1'"""
+            dist = (self.agent.zeta[6] - self.env.coord_circ[circle][0])**2 + (
+                self.agent.zeta[7] - self.env.coord_circ[circle][1])**2
+            radius = self.env.coord_circ[circle][2]**2
+            return dist < radius
 
-        if self.agent.zeta[1] >= self.constraints[6]:
-            possible_actions[6] = False
-        if (self.agent.zeta[6] - self.env.coord_circ['circle_2'][0])**2 + (self.agent.zeta[7] - self.env.coord_circ['circle_2'][1])**2 > self.env.coord_circ['circle_2'][2]**2:
-            possible_actions[6] = False
+        def check_resource(i):
+            index_circle = 4+i
+            if self.agent.zeta[0+i - 1] >= self.constraints[index_circle]:
+                possible_actions[index_circle] = False
+            if not is_near_ressource(f'circle_{str(i)}'):
+                possible_actions[index_circle] = False
 
-        if self.agent.zeta[2] >= self.constraints[7]:
-            possible_actions[7] = False
-        if (self.agent.zeta[6] - self.env.coord_circ['circle_3'][0])**2 + (self.agent.zeta[7] - self.env.coord_circ['circle_3'][1])**2 > self.env.coord_circ['circle_3'][2]**2:
-            possible_actions[7] = False
+        for resource in range(1, 5):
+            check_resource(resource)
 
-        if self.agent.zeta[3] >= self.constraints[8]:
-            possible_actions[8] = False
-        if (self.agent.zeta[6] - self.env.coord_circ['circle_4'][0])**2 + (self.agent.zeta[7] - self.env.coord_circ['circle_4'][1])**2 > self.env.coord_circ['circle_4'][2]**2:
-            possible_actions[8] = False
+        # # resource 1
+        # if self.agent.zeta[0] >= self.constraints[5]:
+        #     possible_actions[5] = False
+        # if not is_near_ressource('circle_1'):
+        #     possible_actions[5] = False
 
-        if not self.env.is_segment_inside(self.agent.zeta[6], self.env.coord_circ['circle_1'][0], self.agent.zeta[7], self.env.coord_circ['circle_1'][1]):
-            possible_actions[10] = False
+        # # resource 2
+        # if self.agent.zeta[1] >= self.constraints[6]:
+        #     possible_actions[6] = False
+        # if not is_near_ressource('circle_2'):
+        #     possible_actions[6] = False
 
-        if not self.env.is_segment_inside(self.agent.zeta[6], self.env.coord_circ['circle_2'][0], self.agent.zeta[7], self.env.coord_circ['circle_2'][1]):
-            possible_actions[11] = False
+        # # resource 3
+        # if self.agent.zeta[2] >= self.constraints[7]:
+        #     possible_actions[7] = False
+        # if not is_near_ressource('circle_3'):
+        #     possible_actions[7] = False
 
-        if not self.env.is_segment_inside(self.agent.zeta[6], self.env.coord_circ['circle_3'][0], self.agent.zeta[7], self.env.coord_circ['circle_3'][1]):
-            possible_actions[12] = False
+        # # resource 4
+        # if self.agent.zeta[3] >= self.constraints[8]:
+        #     possible_actions[8] = False
+        # if not is_near_ressource('circle_4'):
+        #     possible_actions[8] = False
 
-        if not self.env.is_segment_inside(self.agent.zeta[6], self.env.coord_circ['circle_4'][0], self.agent.zeta[7], self.env.coord_circ['circle_4'][1]):
-            possible_actions[13] = False
+        def is_resource_visible(resource):
+            """Check if segment between agent and resource i is visible"""
+            xa = self.agent.zeta[6]
+            xb = self.env.coord_circ[f'circle_{str(resource)}'][0]
+            ya = self.agent.zeta[7]
+            yb = self.env.coord_circ[f'circle_{str(resource)}'][1]
+            return self.env.is_segment_inside(xa, xb, ya, yb)
+
+        for resource in range(1, 5):
+            if not is_resource_visible(resource):
+                possible_actions[9+resource] = False
+
+        # if not is_resource_visible(resource):
+        #     possible_actions[10] = False
+
+        # if not self.env.is_segment_inside(self.agent.zeta[6], self.env.coord_circ['circle_2'][0], self.agent.zeta[7], self.env.coord_circ['circle_2'][1]):
+        #     possible_actions[11] = False
+
+        # if not self.env.is_segment_inside(self.agent.zeta[6], self.env.coord_circ['circle_3'][0], self.agent.zeta[7], self.env.coord_circ['circle_3'][1]):
+        #     possible_actions[12] = False
+
+        # if not self.env.is_segment_inside(self.agent.zeta[6], self.env.coord_circ['circle_4'][0], self.agent.zeta[7], self.env.coord_circ['circle_4'][1]):
+        #     possible_actions[13] = False
 
         return possible_actions
 
     def new_state(self, a):
+        """Return the new state after an action is taken.
+        hugo
+        Parameter:
+        ----------
+        a: action.
+        actions = [
+            0# walking
+            1# running
+            2# turning an angle to the left
+            3# turning an angle to the right
+            4# sleeping
+            5# get resource 1
+            6# get resource 2
+            7# get resource 3
+            8# get resource 4
+            9# not doing anything
+        ]
+
+
+        Returns:
+        --------
+        The new states.
+        """
         if a == 4:
+            # The new state is when the agent wakes up
+            # Therefore, we integrate the differential equation until this time
             new_zeta = self.agent.zeta
+            for i in range(6):
+                new_zeta[i] = -self.agent.x_star[i] + (new_zeta[i] + self.agent.x_star[i]) * np.exp(
+                    (self.agent.a[i] + self.actions_controls[4][i]) * self.min_time_sleep * self.time_step)
             return new_zeta
+
+        action_circle = {
+            10: "circle_1",
+            11: "circle_2",
+            12: "circle_3",
+            13: "circle_4",
+        }
+
+        def going_and_get_resource(circle):
+            new_zeta = self.agent.zeta
+            d = np.sqrt((self.agent.zeta[6] - self.env.coord_circ[circle][0])**2 + (
+                self.agent.zeta[7] - self.env.coord_circ[circle][1])**2)
+            if d != 0:
+                # If the agent is at a distance d from the resource, it will first need to walk
+                # to consume it. Thus, we integrate the differential equation of its internal
+                # state during this time
+                t = d * self.time_step / 0.1
+                for i in range(6):
+                    new_zeta[i] = -self.agent.x_star[i] + (new_zeta[i] + self.agent.x_star[i]) * np.exp(
+                        (self.agent.c[i] + self.actions_controls[0][0][i]) * t)
+                new_zeta[6] = self.env.coord_circ[circle][0]
+                new_zeta[7] = self.env.coord_circ[circle][1]
+                return new_zeta
+            else:
+                # If the agent is already on the resource, then consuming it is done instantly
+                u = self.actions_controls[9]
+                new_zeta = self.agent.zeta + self.time_step * \
+                    self.agent.dynamics(self.agent.zeta, u)
+                return new_zeta
+
+        for a_, circle in action_circle.items():
+            if a == a_:
+                going_and_get_resource(circle)
 
         else:
             u = np.zeros(self.agent.zeta.shape)
 
+            # walk
             if a == 0:
-                u = self.actions_controls[0]
-                u[6] = u[6] * np.cos(self.agent.zeta[8])
-                u[7] = u[7] * np.sin(self.agent.zeta[8])
+                u = self.actions_controls[0][int(self.agent.zeta[8])]
 
+            # run
             elif a == 1:
-                u = self.actions_controls[1]
-                u[6] = u[6] * np.cos(self.agent.zeta[8])
-                u[7] = u[7] * np.sin(self.agent.zeta[8])
+                u = self.actions_controls[1][int(self.agent.zeta[8])]
 
+            # if other, we just select the control associated with this action.
             elif (a == 2) or (a == 3) or (a == 5) or (a == 6) or (a == 7) or (a == 8) or (a == 9):
                 u = self.actions_controls[a]
 
+            # Euler method to calculate the new zeta.
             new_zeta = self.agent.zeta + self.time_step * \
                 self.agent.dynamics(self.agent.zeta, u)
-            new_zeta[8] = new_zeta[8] % (2 * np.pi)
+
+            # If the agent is turning its angle
+            # Not in euler because discretized.
+            if a == 2:
+                new_zeta[8] = new_zeta[8] + 1
+            elif a == 3:
+                new_zeta[8] = new_zeta[8] - 1
+            if new_zeta[8] == len(self.actions_controls[0]):
+                new_zeta[8] = 0
+            elif new_zeta[8] == -1:
+                new_zeta[8] = len(self.actions_controls[0]) - 1
 
             return new_zeta
 
+    def evaluate_action(self, action, possible_actions, indexes_possible_actions):
+        zeta_u = np.concatenate(
+            [self.agent.zeta, np.zeros(len(possible_actions))])
+        index_control = len(self.agent.zeta) + \
+            indexes_possible_actions[action]
+        zeta_u[index_control] = 1
+        zeta_u_to_f = torch.from_numpy(zeta_u).float()
+        zeta_to_J = torch.from_numpy(self.agent.zeta).float()
+        zeta_to_J.requires_grad = True
+
+        self.net_J.eval()
+        self.net_f.eval()
+
+        f = self.net_f.forward(zeta_u_to_f).detach().numpy()
+        new_zeta_ = self.agent.zeta + self.time_step * f
+        score = self.agent.drive(new_zeta_)
+        grad_ = torch.autograd.grad(
+            self.net_J(zeta_to_J), zeta_to_J)[0]
+        score += torch.dot(grad_,
+                           self.net_f.forward(zeta_u_to_f)).detach().numpy()
+
+        zeta_to_J.requires_grad = False
+
+        self.net_J.train()
+        self.net_f.train()
+        return score
+
+    def simulation_one_step(self, k):
+        """ k : int : step number
+        """
+        # if you are exacly on 0 (empty resource) you get stuck
+        # because of the nature of the differential equation.
+        for i in range(6):
+            if self.agent.zeta[i] + self.agent.x_star[i] <= 0.1:
+                self.agent.zeta[i] = -self.agent.x_star[i] + 0.1
+
+        possible_actions = self.actions_possible()
+        indexes_possible_actions = [i for i in range(
+            len(possible_actions)) if possible_actions[i]]
+        action = 9
+
+        if np.random.random() <= self.eps:
+            action = np.random.choice(indexes_possible_actions)
+
+        else:
+            best_score = np.Inf
+            for action in range(len(indexes_possible_actions)):
+                score = self.evaluate_action(action, possible_actions,
+                                             indexes_possible_actions)
+                if score < best_score:
+                    best_score = score
+                    action = indexes_possible_actions[action]
+
+        # Why not use torch directly to store those values ?
+        zeta_to_nn = torch.from_numpy(self.agent.zeta).float()
+        zeta_u = np.concatenate(
+            [self.agent.zeta, np.zeros(len(possible_actions))])
+        zeta_u[len(self.agent.zeta) + action] = 1
+        zeta_u_to_nn = torch.from_numpy(zeta_u).float()
+
+        new_zeta = self.new_state(action)
+        new_zeta_to_nn = torch.from_numpy(new_zeta).float()
+
+        coeff = self.asym_coeff
+        if action in {4: '', 10: '', 11: '', 12: '', 13: ''}:
+            coeff = 1
+
+        Loss_f = coeff * torch.dot(new_zeta_to_nn - zeta_to_nn - self.time_step * self.net_f.forward(
+            zeta_u_to_nn), new_zeta_to_nn - zeta_to_nn - self.time_step * self.net_f.forward(zeta_u_to_nn))
+
+        self.optimizer_J.zero_grad()
+        self.optimizer_f.zero_grad()
+        Loss_f.backward()
+        self.optimizer_J.zero_grad()
+        self.optimizer_f.step()
+
+        zeta_to_nn.requires_grad = True
+        Loss_J = torch.square(self.agent.drive(new_zeta) + torch.dot(torch.autograd.grad(self.net_J(zeta_to_nn), zeta_to_nn)[
+            0], self.net_f.forward(zeta_u_to_nn)) + np.log(self.gamma) * self.net_J.forward(zeta_to_nn))
+        zeta_to_nn.requires_grad = False
+
+        self.optimizer_J.zero_grad()
+        self.optimizer_f.zero_grad()
+        Loss_J.backward()
+        self.optimizer_f.zero_grad()
+        self.optimizer_J.step()
+
+        self.agent.zeta = new_zeta
+
+        if k % self.N_print == 0:
+            print("Iteration:", k, "/", self.N_iter)
+            print("Action:", action)
+            print("zeta:", self.agent.zeta)
+            print("")
+
+        if k % self.N_save_weights == 0:
+            torch.save(self.net_J.state_dict(), 'weights_net_J')
+            torch.save(self.net_f.state_dict(), 'weights_net_f')
+
     def simulation(self):
         for k in range(N_iter):
-            possible_actions = self.actions_possible()
-            indexes_possible_actions = [i for i in range(
-                len(possible_actions)) if possible_actions[i]]
-            action = 9
-
-            if np.random.random() <= self.eps:
-                action = np.random.choice(indexes_possible_actions)
-
-            else:
-                best_score = np.Inf
-                for i in range(len(indexes_possible_actions)):
-                    zeta_u = np.concatenate(
-                        [self.agent.zeta, np.zeros(len(possible_actions))])
-                    zeta_u[len(self.agent.zeta) +
-                           indexes_possible_actions[i]] = 1
-                    zeta_u_to_f = torch.from_numpy(zeta_u).float()
-                    zeta_to_J = torch.from_numpy(self.agent.zeta).float()
-                    zeta_to_J.requires_grad = True
-
-                    self.net_J.eval()
-                    self.net_f.eval()
-
-                    score = self.agent.drive(
-                        self.agent.zeta + self.time_step * self.net_f.forward(zeta_u_to_f).detach().numpy())
-                    score += torch.dot(torch.autograd.grad(self.net_J(zeta_to_J), zeta_to_J)[
-                                       0], self.net_f.forward(zeta_u_to_f)).detach().numpy()
-
-                    zeta_to_J.requires_grad = False
-
-                    self.net_J.train()
-                    self.net_f.train()
-
-                    if score < best_score:
-                        best_score = score
-                        action = indexes_possible_actions[i]
-
-            zeta_to_nn = torch.from_numpy(self.agent.zeta).float()
-            zeta_u = np.concatenate(
-                [self.agent.zeta, np.zeros(len(possible_actions))])
-            zeta_u[len(self.agent.zeta) + action] = 1
-            zeta_u_to_nn = torch.from_numpy(zeta_u).float()
-            new_zeta = self.new_state(action)
-            new_zeta_to_nn = torch.from_numpy(new_zeta).float()
-
-            Loss_f = torch.dot(new_zeta_to_nn - zeta_to_nn - self.time_step * self.net_f.forward(
-                zeta_u_to_nn), new_zeta_to_nn - zeta_to_nn - self.time_step * self.net_f.forward(zeta_u_to_nn))
-
-            self.optimizer_J.zero_grad()
-            self.optimizer_f.zero_grad()
-            Loss_f.backward()
-            self.optimizer_J.zero_grad()
-            self.optimizer_f.step()
-
-            zeta_to_nn.requires_grad = True
-            Loss_J = torch.square(self.agent.drive(new_zeta) + torch.dot(torch.autograd.grad(self.net_J(zeta_to_nn), zeta_to_nn)[
-                                  0], self.net_f.forward(zeta_u_to_nn)) + np.log(self.gamma) * self.net_J.forward(zeta_to_nn))
-            zeta_to_nn.requires_grad = False
-
-            self.optimizer_J.zero_grad()
-            self.optimizer_f.zero_grad()
-            Loss_J.backward()
-            self.optimizer_f.zero_grad()
-            self.optimizer_J.step()
-
-            self.agent.zeta = new_zeta
-
-            if k % self.N_print == 0:
-                print("Iteration:", k, "/", self.N_iter)
-                print("zeta:", self.agent.zeta)
-
-            if k % self.N_save_weights == 0:
-                torch.save(self.net_J.state_dict(), 'weights_net_J')
-                torch.save(self.net_f.state_dict(), 'weights_net_f')
+            self.simulation_one_step(k)
 
         torch.save(self.net_J.state_dict(), 'weights_net_J')
         torch.save(self.net_f.state_dict(), 'weights_net_f')
@@ -386,13 +633,14 @@ coord_circ = {'circle_1': [1.5, 4.25, 0.3, 'red'],
 
 env = Environment(coord_env, coord_circ)
 
-
+# homeostatic point
+# What are those coordinates?
 x_star = np.array([1, 2, 3, 4, 0, 0])
 # parameters of the function f
-a = np.array([0.05, 0.05, 0.05, 0.05, -0.008, 0.0005, 0, 0, 0])
+c = np.array([-0.05, -0.05, -0.05, -0.05, -0.008, 0.0005, 0, 0, 0])
 angle_visual_field = np.pi / 10
 
-agent = Agent(x_star, a, angle_visual_field)
+agent = Agent(x_star, c, angle_visual_field)
 
 
 n_neurons = 128
@@ -403,7 +651,7 @@ net_f = Net_f(n_neurons, dropout_rate)
 
 
 time_step = 1
-eps = 0.1
+eps = 0.3
 gamma = 0.99
 tau = 0.001
 N_iter = 10000
@@ -411,29 +659,63 @@ N_save_weights = 1000  # save neural networks weights every N_save_weights step
 N_print = 100
 learning_rate = 0.001
 
-actions_controls = [np.array([0, 0, 0, 0, 0.01, 0, 0.01, 0.01, 0]),  # walking
-                    np.array([0, 0, 0, 0, 0.05, 0, 0.03, 0.03, 0]),  # running
-                    # turning an angle to the left
-                    np.array([0, 0, 0, 0, 0.001, 0, 0, 0, np.pi / 20]),
-                    # turning an angle to the right
-                    np.array([0, 0, 0, 0, 0.001, 0, 0, 0, -np.pi / 20]),
-                    np.array([0, 0, 0, 0, 0, -0.001, 0, 0, 0]),  # sleeping
-                    # consuming resource 1
-                    np.array([0.1, 0, 0, 0, 0, 0, 0, 0, 0]),
-                    # consuming resource 2
-                    np.array([0, 0.1, 0, 0, 0, 0, 0, 0, 0]),
-                    # consuming resource 3
-                    np.array([0, 0, 0.1, 0, 0, 0, 0, 0, 0]),
-                    # consuming resource 4
-                    np.array([0, 0, 0, 0.1, 0, 0, 0, 0, 0]),
-                    np.array([0, 0, 0, 0, 0, 0, 0, 0, 0])]  # not doing anything
+
+# We discretized the angles in order no to spin without moving
+# The controls for walking and running for each angle is pre-computed
+num_pos_angles = 5
+controls_turn = [[np.cos(2 * np.pi / num_pos_angles * i), np.sin(2 *
+                                                                 np.pi / num_pos_angles * i)] for i in range(0, num_pos_angles)]
+
+control_walking = [np.array([0, 0, 0, 0, 0.01, 0, 0.1 * controls_turn[i]
+                            [0], 0.1 * controls_turn[i][1], 0]) for i in range(num_pos_angles)]
+control_running = [np.array([0, 0, 0, 0, 0.05, 0, 0.3 * controls_turn[i]
+                            [0], 0.3 * controls_turn[i][1], 0]) for i in range(num_pos_angles)]
+
+
+# For each action, there is a control verifying for example that
+# the msucular tiredness enables the agent to walk.
+# for example , for the fist action (walking), we verify that the tiredness is not above 6.
+# For the second action (running), we verify that the tiredness is not above 3.
+actions_controls = [
+    # walking
+    control_walking,  # -> constraints[0]
+    # running
+    control_running,  # -> constraints[1]
+    # turning an angle to the left
+    np.array([0, 0, 0, 0, 0.001, 0, 0, 0, 0]),  # etc...
+    # turning an angle to the right
+    np.array([0, 0, 0, 0, 0.001, 0, 0, 0, 0]),
+    # sleeping
+    np.array([0, 0, 0, 0, 0, -0.001, 0, 0, 0]),
+    # get resource 1
+    np.array([0.1, 0, 0, 0, 0, 0, 0, 0, 0]),
+    # get resource 2
+    np.array([0, 0.1, 0, 0, 0, 0, 0, 0, 0]),
+    # get resource 3
+    np.array([0, 0, 0.1, 0, 0, 0, 0, 0, 0]),
+    # get resource 4
+    np.array([0, 0, 0, 0.1, 0, 0, 0, 0, 0]),
+    # not doing anything
+    np.array([0, 0, 0, 0, 0, 0, 0, 0, 0])]  # Should the agent loose energy during sleep?
+
 
 # same order of action as actions_controls
-constraints = [6, 3, 6, 6, 1, 15, 15, 15, 15, None]
+# Constraint verify the tiredness. There are tree types of tiredness :
+# - muscular tiredness (M)
+# - and sleep tiredness (S)
+# - max_food_in_the_stomach (F)
+#              M, M, M, M, S, F,  F,  F,  F,  (*)
+#constraints = [6, 3, 6, 6, 1, 15, 15, 15, 15, None]
+constraints = [6, 3, 6, 6, 1, 8, 8, 8, 8, None]
+# (*) There is not any constrant when you do anything.
 
 min_time_sleep = 1000  # ratio of the minimum sleep time for the agent and the time_step
 max_tired = 10
+asym_coeff = 100
 
 algo = Algorithm(env, agent, net_J, net_f,
                  time_step, eps, gamma, tau, N_iter, N_save_weights, N_print, learning_rate,
-                 actions_controls, constraints, min_time_sleep, max_tired)
+                 actions_controls, constraints, min_time_sleep, max_tired, asym_coeff)
+
+
+algo.simulation()
