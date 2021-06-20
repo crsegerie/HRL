@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 import numpy as np
 import torch
 import torch.nn as nn
@@ -75,24 +76,46 @@ class Environment:
         else:
             return True
 
-    def plot(self, save_fig=False):
-        """Plot the environment, but not the Agent."""
+    def plot(self, ax=None, save_fig=False):
+        """Plot the environment, but not the Agent.
+
+        Parameters
+        ----------
+        ax: SubplotBase
+        save_fig: bool
+
+        Returns
+        -------
+        Returns nothing. Only inplace update ax.
+        """
+
+        if ax is None:
+            ax = plt.subplot(111)
+
         lab = list(self.coord_env.keys())
         for i in range(0, len(lab) - 2, 2):
-            plt.plot([self.coord_env[lab[i]], self.coord_env[lab[i + 2]]],
-                     [self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]]], '-', color='black', lw=2)
-        plt.plot([self.coord_env[lab[len(lab) - 2]], self.coord_env[lab[0]]],
-                 [self.coord_env[lab[len(lab) - 1]], self.coord_env[lab[1]]], '-', color='black', lw=2)
+            ax.plot([self.coord_env[lab[i]], self.coord_env[lab[i + 2]]],
+                    [self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]]],
+                    '-', color='black', lw=2)
+        ax.plot([self.coord_env[lab[len(lab) - 2]], self.coord_env[lab[0]]],
+                [self.coord_env[lab[len(lab) - 1]], self.coord_env[lab[1]]],
+                '-', color='black', lw=2)
 
-        for key in self.coord_circ:
-            circle = plt.Circle((self.coord_circ[key][0], self.coord_circ[key][1]),
-                                self.coord_circ[key][2], color=self.coord_circ[key][3])
-            plt.gcf().gca().add_artist(circle)
+        for circle_name, circle in self.coord_circ.items():
+            x = circle[0]
+            y = circle[1]
+            r = circle[2]
+            color = circle[3]
+            patch_circle = Circle((x, y), r, color=color)
 
-        plt.axis('off')
+            ax.add_patch(patch_circle)
+
+            ax.text(x, y, circle_name)
+
+        ax.axis('off')
 
         if save_fig:
-            plt.savefig('environment.eps', format='eps')
+            ax.savefig('environment.eps', format='eps')
 
 
 class Agent:
@@ -280,6 +303,9 @@ class Algorithm:
         self.min_resource = min_resource
 
         self.nb_actions = nb_actions
+
+        self.historic_zeta = []
+        self.historic_actions = []
 
     def actions_possible(self):
         """
@@ -563,7 +589,15 @@ class Algorithm:
         return score
 
     def simulation_one_step(self, k):
-        """ k : int : step number"""
+        """Simulate one step.
+
+        Paramaters:
+        -----------
+        k: int
+
+        Returns
+        -------
+        action: int"""
         # if you are exacly on 0 (empty resource) you get stuck
         # because of the nature of the differential equation.
         for i in range(6):
@@ -654,16 +688,174 @@ class Algorithm:
             torch.save(self.net_J.state_dict(), 'weights_net_J')
             torch.save(self.net_f.state_dict(), 'weights_net_f')
 
+        return action
+
+    def plot_ressources(self, ax, frame):
+        """Plot the historic of the ressrouce with time in abscisse.
+
+        Parameters:
+        -----------
+        ax: SubplotBase
+        frame: int
+
+        Returns:
+        --------
+        None
+        Warning : abscisse is not time but step!
+        """
+
+        import pandas as pd
+
+        zeta_meaning = [
+            "resource_1",
+            "resource_2",
+            "resource_3",
+            "resource_4",
+            "muscular energy",
+            "aware energy",
+            "x",
+            "y",
+            "angle",
+        ]
+
+        df = pd.DataFrame(self.historic_zeta[:frame+1],
+                          columns=zeta_meaning)
+        df.plot(ax=ax, grid=True, yticks=list(range(0, 10)))  # TODO
+        ax.set_ylabel('value')
+        ax.set_xlabel('frames')
+
+    def plot(self, n_step: int = 1):
+        """Plot the position, angle and the ressources of the agent.
+
+        - time, ressources, historic in transparence -> faire une fonction plot en dehors de l'agent
+
+
+        Parameters:
+        -----------
+        n_step: We save the figure each n_step.
+
+        Returns:
+        --------
+        None
+        """
+
+        for frame, zeta in enumerate(self.historic_zeta[:-1:n_step]):
+
+            fig, axs = plt.subplots(1, 2, figsize=(15, 9), sharey=True)
+
+            last_action = self.historic_actions[frame]
+
+            fig.suptitle(
+                f'frame {frame}- last action: {last_action} : {meaning_actions[last_action]} ',
+                fontsize=16)
+
+            ax_env = axs[0]
+            ax_resource = axs[1]
+
+            self.env.plot(ax=ax_env)  # initialisation of plt with background
+
+            self.plot_ressources(ax=ax_resource, frame=frame)
+
+            x = zeta[6]
+            y = zeta[7]
+
+            num_angle = int(zeta[8])
+
+            dx, dy = controls_turn[num_angle]
+
+            alpha = 0.5
+
+            ax_env.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
+            # todo: add circle
+
+            plt.savefig(f"images/frame_{frame}")
+            plt.close(fig)
+
+    # def animate(self):
+        # from matplotlib import animation
+
+        # plt_background = self.env.plot()
+
+        # # First set up the figure, the axis, and the plot element we want to animate
+        # fig = plt_background.figure()
+        # plt = plt_background
+        # ax = plt.axes(xlim=(-1, 10), ylim=(-1, 10))
+        # line, = ax.plot([], [], lw=2)
+
+        # # initialization function: plot the background of each frame
+        # def init():
+        #     line.set_data([], [])
+        #     return line,
+
+        # # animation function.  This is called sequentially
+        # def animate(i):
+        #     # zeta = self.historic_zeta[i]
+        #     # x = zeta[6], zeta[6]
+        #     # y = zeta[7], zeta[7]
+
+        #     x = np.array(self.historic_zeta)[:i, 6]
+        #     y = np.array(self.historic_zeta)[:i, 7]
+        #     line.set_data(x, y)
+        #     line.set_data(x, y)
+
+        #     return line,
+
+        # # call the animator.  blit=True means only re-draw the parts that have changed.
+        # anim = animation.FuncAnimation(fig, animate, init_func=init,
+        #                                frames=len(self.historic_zeta)-1,
+        #                                interval=20, blit=True)
+
+        # # save the animation as an mp4.  This requires ffmpeg or mencoder to be
+        # # installed.  The extra_args ensure that the x264 codec is used, so that
+        # # the video can be embedded in html5.  You may need to adjust this for
+        # # your system: for more information, see
+        # # http://matplotlib.sourceforge.net/api/animation_api.html
+        # anim.save('basic_animation.mp4', fps=30)
+
+        # plt.show()
+
+        # from matplotlib.animation import FuncAnimation
+
+        # fig, ax = plt.subplots()
+        # xdata, ydata = [], []
+        # ln, = plt.plot([], [], 'ro')
+
+        # def init():
+        #     ax.set_xlim(0, 2*np.pi)
+        #     ax.set_ylim(-1, 1)
+        #     ax = self.env.plot(ax)
+        #     return ln,
+
+        # def update(frame):
+        #     xdata.append(frame)
+        #     ydata.append(np.sin(frame))
+        #     ln.set_data(xdata, ydata)
+        #     return ln,
+
+        # ani = FuncAnimation(fig, update, frames=np.linspace(0, 2*np.pi, 128),
+        #                     init_func=init, blit=True)
+        # plt.show()
+
     def simulation(self):
+
         for k in range(N_iter):
-            self.simulation_one_step(k)
+            action = self.simulation_one_step(k)
+
+            # save historic
+            self.historic_zeta.append(self.agent.zeta)
+            self.historic_actions.append(action)
+
+        self.plot()
+        # plt.show()
+
+        # self.animate()
+        # plt.show()
 
         torch.save(self.net_J.state_dict(), 'weights_net_J')
         torch.save(self.net_f.state_dict(), 'weights_net_f')
 
 
 # Simulation
-
 coord_env = {'xa': 1, 'ya': 1,
              'xb': 1, 'yb': 5,
              'xc': 2, 'yc': 5,
@@ -683,6 +875,7 @@ coord_env = {'xa': 1, 'ya': 1,
              'xq': 5, 'yq': 2,
              'xr': 5, 'yr': 1}
 
+# x, y, r, color
 coord_circ = {'circle_1': [1.5, 4.25, 0.3, 'red'],
               'circle_2': [4.5, 1.5, 0.3, 'blue'],
               'circle_3': [8, 5.5, 0.3, 'orange'],
@@ -715,7 +908,7 @@ time_step = 1
 eps = 0.3
 gamma = 0.99
 tau = 0.001  # not used yet (linked with the target function)
-N_iter = 10000
+N_iter = 10
 N_save_weights = 1000  # save neural networks weights every N_save_weights step
 N_print = 100
 learning_rate = 0.001
@@ -770,6 +963,24 @@ actions_controls = [
 
 # there are 4 additionnal actions : Going to the 4 resource and eating
 nb_actions = len(actions_controls) + 4
+
+
+meaning_actions = {
+    0: "walking",
+    1: "running",
+    2: "turning trigo",
+    3: "turning anti trigo",
+    4: "sleeping",
+    5: "get resource 1",
+    6: "get resource 2",
+    7: "get resource 3",
+    8: "get resource 4",
+    9: "not doing anything",
+    10: "going direcly to resource 1",
+    11: "going direcly to resource 2",
+    12: "going direcly to resource 3",
+    13: "going direcly to resource 4",
+}
 
 
 # Same order of action as actions_controls
