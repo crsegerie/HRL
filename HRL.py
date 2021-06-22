@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import seaborn as sns
 
 
 class Environment:
@@ -678,17 +679,57 @@ class Algorithm:
 
         self.agent.zeta = new_zeta
 
-        if k % self.N_print == 0:
+        if (k % self.N_print) == 0:
             print("Iteration:", k, "/", self.N_iter)
             print("Action:", action)
             print("zeta:", self.agent.zeta)
             print("")
 
-        if k % self.N_save_weights == 0:
+        if (k % self.N_save_weights) == 0:
             torch.save(self.net_J.state_dict(), 'weights_net_J')
             torch.save(self.net_f.state_dict(), 'weights_net_f')
 
         return action
+
+    def plot_J(self, ax):
+        """Plot of the learned J function.
+
+        Parameters:
+        -----------
+        ax: SubplotBase
+
+        Returns:
+        --------
+        None
+        """
+
+        algo.net_J.eval()
+
+        self.env.plot()
+        plt.figure()
+
+        values = np.zeros((90, 60))
+        mask = np.zeros((90, 60))
+        for i in range(90):  # x
+            for j in range(60):  # y
+                inside = env.is_point_inside(i/10, j/10)
+                if not inside:
+                    mask[i, j] = True
+                else:
+                    # We are at the optimum for three out of the 4 resources
+                    # but one resources is at its lowest.
+                    # No muscular nor energic fatigues.
+                    zeta = np.array(
+                        [0, 0, 0, -self.agent.x_star[3], 0, 0, i/10, j/10, 0])
+                    zeta_to_J = torch.from_numpy(zeta).float()
+                    values[i, j] = algo.net_J(zeta_to_J).detach().numpy()
+        #values = values - np.amin(values)
+        #values = values / np.amax(values)
+        with sns.axes_style("white"):
+            ax = sns.heatmap(values.T, mask=mask.T, square=True,
+                             cmap="YlGnBu")  # vmax=5, vmin = -5,
+            ax.axis('off')
+            ax.invert_yaxis()
 
     def plot_ressources(self, ax, frame):
         """Plot the historic of the ressrouce with time in abscisse.
@@ -741,7 +782,7 @@ class Algorithm:
 
         for frame, zeta in enumerate(self.historic_zeta[:-1:n_step]):
 
-            fig, axs = plt.subplots(1, 2, figsize=(15, 9), sharey=True)
+            fig, axs = plt.subplots(1, 3, figsize=(15, 9), sharey=True)
 
             last_action = self.historic_actions[frame]
 
@@ -751,10 +792,12 @@ class Algorithm:
 
             ax_env = axs[0]
             ax_resource = axs[1]
+            ax_J = axs[2]
 
             self.env.plot(ax=ax_env)  # initialisation of plt with background
 
             self.plot_ressources(ax=ax_resource, frame=frame)
+            self.plot_J(ax=ax_J)
 
             x = zeta[6]
             y = zeta[7]
@@ -838,7 +881,8 @@ class Algorithm:
 
     def simulation(self):
 
-        for k in range(N_iter):
+        for k in range(self.N_iter):
+            print(k)
             action = self.simulation_one_step(k)
 
             # save historic
@@ -908,9 +952,9 @@ time_step = 1
 eps = 0.3
 gamma = 0.99
 tau = 0.001  # not used yet (linked with the target function)
-N_iter = 10
+N_iter = 1
 N_save_weights = 1000  # save neural networks weights every N_save_weights step
-N_print = 100
+N_print = 1
 learning_rate = 0.001
 
 
