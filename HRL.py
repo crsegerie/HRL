@@ -788,7 +788,7 @@ class Algorithm:
         ax.set_ylabel('value')
         ax.set_xlabel('frames')
 
-    def plot(self, n_step: int = 1, scale = 5):
+    def plot(self, n_step: int = 1, scale=5):
         """Plot the position, angle and the ressources of the agent.
 
         - time, ressources, historic in transparence -> faire une fonction plot en dehors de l'agent
@@ -802,7 +802,7 @@ class Algorithm:
         --------
         None
         """
-        
+
         is_inside = self.compute_mask(scale=scale)
 
         for frame, zeta in enumerate(self.historic_zeta[:-1:n_step]):
@@ -810,12 +810,16 @@ class Algorithm:
             # fig, axs = plt.subplots(1, 3, figsize=(15, 9), sharey=True,
             #                         gridspec_kw={'width_ratios': [3, 1, 3]})
 
-            fig = plt.figure(figsize=(15, 9))
-            ax_env = plt.subplot2grid((3, 3), (0, 0), colspan=3)
-            ax_resource = plt.subplot2grid((3, 3), (1, 0), colspan=2)
-            ax_J = plt.subplot2grid((3, 3), (1, 2), rowspan=2)
-            ax4 = plt.subplot2grid((3, 3), (2, 0))
-            ax5 = plt.subplot2grid((3, 3), (2, 1))
+            fig = plt.figure(figsize=(16, 16))
+            shape = (4, 4)
+            ax_resource = plt.subplot2grid(shape, (0, 0), colspan=4)
+            ax_env = plt.subplot2grid(shape, (1, 0), colspan=2, rowspan=2)
+            ax_loss = plt.subplot2grid(shape, (1, 2), colspan=2, rowspan=2)
+            axs_J = [None]*4
+            axs_J[0] = plt.subplot2grid(shape, (3, 0))
+            axs_J[1] = plt.subplot2grid(shape, (3, 1))
+            axs_J[2] = plt.subplot2grid(shape, (3, 2))
+            axs_J[3] = plt.subplot2grid(shape, (3, 3))
 
             last_action = self.historic_actions[frame]
 
@@ -823,15 +827,14 @@ class Algorithm:
                 f'frame {frame}- last action: {last_action} : {meaning_actions[last_action]} ',
                 fontsize=16)
 
-            # ax_env = axs[0]
-            # ax_resource = axs[1]
-            # ax_J = axs[2]
-
             self.env.plot(ax=ax_env)  # initialisation of plt with background
 
             self.plot_ressources(ax=ax_resource, frame=frame)
-            self.plot_J(ax=ax_J, fig=fig, resource=1,
-                        scale=scale, is_inside=is_inside)  # todo: boucle.
+
+            for resource in range(4):
+                self.plot_J(ax=axs_J[resource],
+                            fig=fig, resource=resource+1,
+                            scale=scale, is_inside=is_inside)
 
             x = zeta[6]
             y = zeta[7]
