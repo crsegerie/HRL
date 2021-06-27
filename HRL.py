@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import seaborn as sns
 
+
 class Environment:
     def __init__(self, coord_env, coord_circ):
         self.coord_env = coord_env
@@ -691,7 +692,28 @@ class Algorithm:
 
         return action
 
-    def plot_J(self, ax, fig, resource, scale=5):
+    def compute_mask(self, scale):
+        """Compute the mask.
+
+        Parameters:
+        -----------
+        scale: int
+
+        Returns:
+        --------
+        is_inside: np.ndarray
+        """
+        n_X = 9*scale
+        n_Y = 6*scale
+        values = np.empty((n_X, n_Y))
+        values.fill(np.nan)
+        is_inside = np.zeros((n_X, n_Y))
+        for i in range(n_X):  # x
+            for j in range(n_Y):  # y
+                is_inside[i, j] = env.is_point_inside(i/scale, j/scale)
+        return is_inside
+
+    def plot_J(self, ax, fig, resource, scale, is_inside):
         """Plot of the learned J function.
 
         Parameters:
@@ -700,6 +722,7 @@ class Algorithm:
         resource: int
             1, 2, 3, or 4.
         scale: int
+        is_inside : np.ndarray
 
         Returns:
         --------
@@ -711,16 +734,12 @@ class Algorithm:
         n_X = 9*scale
         n_Y = 6*scale
         values = np.empty((n_X, n_Y))
-        values.fill(np.nan)
-        mask = np.zeros((n_X, n_Y))
+        values.fill(np.nan)  # we need it in the plot.
         for i in range(n_X):  # x
             for j in range(n_Y):  # y
-                inside = env.is_point_inside(i/scale, j/scale) # TODO : factoriser
-                if not inside:
-                    mask[i, j] = True
-                else:
+                if is_inside[i, j]:
                     # We are at the optimum for three out of the 4 resources
-                    # but one resources is at its lowest.
+                    # but one resources varies alongside with the coordinates.
                     # No muscular nor energic fatigues.
                     zeta = np.array(
                         [0, 0, 0, -self.agent.x_star[3], 0, 0, i/scale, j/scale, 0])
@@ -769,7 +788,7 @@ class Algorithm:
         ax.set_ylabel('value')
         ax.set_xlabel('frames')
 
-    def plot(self, n_step: int = 1):
+    def plot(self, n_step: int = 1, scale = 5):
         """Plot the position, angle and the ressources of the agent.
 
         - time, ressources, historic in transparence -> faire une fonction plot en dehors de l'agent
@@ -783,6 +802,8 @@ class Algorithm:
         --------
         None
         """
+        
+        is_inside = self.compute_mask(scale=scale)
 
         for frame, zeta in enumerate(self.historic_zeta[:-1:n_step]):
 
@@ -809,7 +830,8 @@ class Algorithm:
             self.env.plot(ax=ax_env)  # initialisation of plt with background
 
             self.plot_ressources(ax=ax_resource, frame=frame)
-            self.plot_J(ax=ax_J, fig=fig, resource=1)  # todo: boucle.
+            self.plot_J(ax=ax_J, fig=fig, resource=1,
+                        scale=scale, is_inside=is_inside)  # todo: boucle.
 
             x = zeta[6]
             y = zeta[7]
