@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
+from matplotlib.colors import Normalize
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import seaborn as sns
-
 
 class Environment:
     def __init__(self, coord_env, coord_circ):
@@ -691,12 +691,14 @@ class Algorithm:
 
         return action
 
-    def plot_J(self, ax):
+    def plot_J(self, ax, fig, resource):
         """Plot of the learned J function.
 
         Parameters:
         -----------
         ax: SubplotBase
+        resource: int
+            1, 2, 3, or 4.
 
         Returns:
         --------
@@ -705,14 +707,12 @@ class Algorithm:
 
         algo.net_J.eval()
 
-        self.env.plot()
-        plt.figure()
-
-        values = np.zeros((90, 60))
+        values = np.empty((90, 60))
+        values.fill(np.nan)
         mask = np.zeros((90, 60))
         for i in range(90):  # x
             for j in range(60):  # y
-                inside = env.is_point_inside(i/10, j/10)
+                inside = env.is_point_inside(i/10, j/10) # TODO : factoriser
                 if not inside:
                     mask[i, j] = True
                 else:
@@ -721,15 +721,21 @@ class Algorithm:
                     # No muscular nor energic fatigues.
                     zeta = np.array(
                         [0, 0, 0, -self.agent.x_star[3], 0, 0, i/10, j/10, 0])
+                    zeta = np.array([0, 0, 0, 0, 0, 0, i/10, j/10, 0])
+                    zeta[resource-1] = -self.agent.x_star[resource-1]
                     zeta_to_J = torch.from_numpy(zeta).float()
                     values[i, j] = algo.net_J(zeta_to_J).detach().numpy()
-        #values = values - np.amin(values)
-        #values = values / np.amax(values)
-        with sns.axes_style("white"):
-            ax = sns.heatmap(values.T, mask=mask.T, square=True,
-                             cmap="YlGnBu")  # vmax=5, vmin = -5,
-            ax.axis('off')
-            ax.invert_yaxis()
+
+        # with sns.axes_style("white"):
+        # sns.heatmap(values.T, mask=mask.T,  # square=True,
+        #             # cmap="YlGnBu", 
+        #             ax=ax)  # vmax=5, vmin = -5,
+        
+
+        im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
+        ax.axis('off')
+        ax.invert_yaxis()
+        cbar = fig.colorbar(im, extend='both', shrink=0.9, ax=ax)
 
     def plot_ressources(self, ax, frame):
         """Plot the historic of the ressrouce with time in abscisse.
@@ -782,7 +788,15 @@ class Algorithm:
 
         for frame, zeta in enumerate(self.historic_zeta[:-1:n_step]):
 
-            fig, axs = plt.subplots(1, 3, figsize=(15, 9), sharey=True)
+            # fig, axs = plt.subplots(1, 3, figsize=(15, 9), sharey=True,
+            #                         gridspec_kw={'width_ratios': [3, 1, 3]})
+
+            fig = plt.figure(figsize=(15, 9))
+            ax_env = plt.subplot2grid((3, 3), (0, 0), colspan=3)
+            ax_resource = plt.subplot2grid((3, 3), (1, 0), colspan=2)
+            ax_J = plt.subplot2grid((3, 3), (1, 2), rowspan=2)
+            ax4 = plt.subplot2grid((3, 3), (2, 0))
+            ax5 = plt.subplot2grid((3, 3), (2, 1))
 
             last_action = self.historic_actions[frame]
 
@@ -790,14 +804,14 @@ class Algorithm:
                 f'frame {frame}- last action: {last_action} : {meaning_actions[last_action]} ',
                 fontsize=16)
 
-            ax_env = axs[0]
-            ax_resource = axs[1]
-            ax_J = axs[2]
+            # ax_env = axs[0]
+            # ax_resource = axs[1]
+            # ax_J = axs[2]
 
             self.env.plot(ax=ax_env)  # initialisation of plt with background
 
             self.plot_ressources(ax=ax_resource, frame=frame)
-            self.plot_J(ax=ax_J)
+            self.plot_J(ax=ax_J, fig=fig, resource=1)  # todo: boucle.
 
             x = zeta[6]
             y = zeta[7]
@@ -810,8 +824,9 @@ class Algorithm:
 
             ax_env.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
             # todo: add circle
-
-            plt.savefig(f"images/frame_{frame}")
+            name_fig = f"images/frame_{frame}"
+            plt.savefig(name_fig)
+            print(name_fig)
             plt.close(fig)
 
     # def animate(self):
@@ -952,7 +967,7 @@ time_step = 1
 eps = 0.3
 gamma = 0.99
 tau = 0.001  # not used yet (linked with the target function)
-N_iter = 1
+N_iter = 3
 N_save_weights = 1000  # save neural networks weights every N_save_weights step
 N_print = 1
 learning_rate = 0.001
