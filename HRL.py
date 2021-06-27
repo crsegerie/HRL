@@ -691,7 +691,7 @@ class Algorithm:
 
         return action
 
-    def plot_J(self, ax, fig, resource):
+    def plot_J(self, ax, fig, resource, scale=5):
         """Plot of the learned J function.
 
         Parameters:
@@ -699,6 +699,7 @@ class Algorithm:
         ax: SubplotBase
         resource: int
             1, 2, 3, or 4.
+        scale: int
 
         Returns:
         --------
@@ -707,12 +708,14 @@ class Algorithm:
 
         algo.net_J.eval()
 
-        values = np.empty((90, 60))
+        n_X = 9*scale
+        n_Y = 6*scale
+        values = np.empty((n_X, n_Y))
         values.fill(np.nan)
-        mask = np.zeros((90, 60))
-        for i in range(90):  # x
-            for j in range(60):  # y
-                inside = env.is_point_inside(i/10, j/10) # TODO : factoriser
+        mask = np.zeros((n_X, n_Y))
+        for i in range(n_X):  # x
+            for j in range(n_Y):  # y
+                inside = env.is_point_inside(i/scale, j/scale) # TODO : factoriser
                 if not inside:
                     mask[i, j] = True
                 else:
@@ -720,22 +723,17 @@ class Algorithm:
                     # but one resources is at its lowest.
                     # No muscular nor energic fatigues.
                     zeta = np.array(
-                        [0, 0, 0, -self.agent.x_star[3], 0, 0, i/10, j/10, 0])
-                    zeta = np.array([0, 0, 0, 0, 0, 0, i/10, j/10, 0])
+                        [0, 0, 0, -self.agent.x_star[3], 0, 0, i/scale, j/scale, 0])
+                    zeta = np.array([0, 0, 0, 0, 0, 0, i/scale, j/scale, 0])
                     zeta[resource-1] = -self.agent.x_star[resource-1]
                     zeta_to_J = torch.from_numpy(zeta).float()
                     values[i, j] = algo.net_J(zeta_to_J).detach().numpy()
 
-        # with sns.axes_style("white"):
-        # sns.heatmap(values.T, mask=mask.T,  # square=True,
-        #             # cmap="YlGnBu", 
-        #             ax=ax)  # vmax=5, vmin = -5,
-        
-
         im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
         ax.axis('off')
         ax.invert_yaxis()
-        cbar = fig.colorbar(im, extend='both', shrink=0.9, ax=ax)
+        ax.set_title(f'Resource {resource}')
+        cbar = fig.colorbar(im, extend='both', shrink=0.4, ax=ax)
 
     def plot_ressources(self, ax, frame):
         """Plot the historic of the ressrouce with time in abscisse.
