@@ -734,7 +734,7 @@ class Algorithm:
         n_X = 9*scale
         n_Y = 6*scale
         values = np.empty((n_X, n_Y))
-        values.fill(np.nan)  # we need it in the plot.
+        values.fill(np.nan)
         for i in range(n_X):  # x
             for j in range(n_Y):  # y
                 if is_inside[i, j]:
@@ -751,7 +751,7 @@ class Algorithm:
         im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
         ax.axis('off')
         ax.invert_yaxis()
-        ax.set_title(f'Resource {resource}')
+        ax.set_title(f'Deviation function (resource {resource} missing)')
         cbar = fig.colorbar(im, extend='both', shrink=0.4, ax=ax)
 
     def plot_ressources(self, ax, frame):
@@ -787,6 +787,34 @@ class Algorithm:
         df.plot(ax=ax, grid=True, yticks=list(range(0, 10)))  # TODO
         ax.set_ylabel('value')
         ax.set_xlabel('frames')
+        ax.set_title("Evolution of the resource")
+
+    def plot_position(self, ax, zeta, controls_turn):
+        """Plot the position with an arrow.
+
+        Parameters:
+        -----------
+        ax: SubplotBase
+        zeta: np.ndarray
+        controls_turn: ?
+
+        Returns:
+        --------
+        None
+        Warning : abscisse is not time but step!
+        """
+        self.env.plot(ax=ax)  # initialisation of plt with background
+        x = zeta[6]
+        y = zeta[7]
+
+        num_angle = int(zeta[8])
+
+        dx, dy = controls_turn[num_angle]
+
+        alpha = 0.5
+
+        ax.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
+        ax.set_title("Position and orientation of the agent")
 
     def plot(self, n_step: int = 1, scale=5):
         """Plot the position, angle and the ressources of the agent.
@@ -807,9 +835,6 @@ class Algorithm:
 
         for frame, zeta in enumerate(self.historic_zeta[:-1:n_step]):
 
-            # fig, axs = plt.subplots(1, 3, figsize=(15, 9), sharey=True,
-            #                         gridspec_kw={'width_ratios': [3, 1, 3]})
-
             fig = plt.figure(figsize=(16, 16))
             shape = (4, 4)
             ax_resource = plt.subplot2grid(shape, (0, 0), colspan=4)
@@ -824,10 +849,12 @@ class Algorithm:
             last_action = self.historic_actions[frame]
 
             fig.suptitle(
-                f'frame {frame}- last action: {last_action} : {meaning_actions[last_action]} ',
+                (f'Dashboard. Frame: {frame} - last action: '
+                 f'{last_action}: {meaning_actions[last_action]} '),
                 fontsize=16)
 
-            self.env.plot(ax=ax_env)  # initialisation of plt with background
+            self.plot_position(ax=ax_env, zeta=zeta,
+                               controls_turn=controls_turn)
 
             self.plot_ressources(ax=ax_resource, frame=frame)
 
@@ -836,86 +863,11 @@ class Algorithm:
                             fig=fig, resource=resource+1,
                             scale=scale, is_inside=is_inside)
 
-            x = zeta[6]
-            y = zeta[7]
-
-            num_angle = int(zeta[8])
-
-            dx, dy = controls_turn[num_angle]
-
-            alpha = 0.5
-
-            ax_env.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
-            # todo: add circle
+            plt.tight_layout()
             name_fig = f"images/frame_{frame}"
             plt.savefig(name_fig)
             print(name_fig)
             plt.close(fig)
-
-    # def animate(self):
-        # from matplotlib import animation
-
-        # plt_background = self.env.plot()
-
-        # # First set up the figure, the axis, and the plot element we want to animate
-        # fig = plt_background.figure()
-        # plt = plt_background
-        # ax = plt.axes(xlim=(-1, 10), ylim=(-1, 10))
-        # line, = ax.plot([], [], lw=2)
-
-        # # initialization function: plot the background of each frame
-        # def init():
-        #     line.set_data([], [])
-        #     return line,
-
-        # # animation function.  This is called sequentially
-        # def animate(i):
-        #     # zeta = self.historic_zeta[i]
-        #     # x = zeta[6], zeta[6]
-        #     # y = zeta[7], zeta[7]
-
-        #     x = np.array(self.historic_zeta)[:i, 6]
-        #     y = np.array(self.historic_zeta)[:i, 7]
-        #     line.set_data(x, y)
-        #     line.set_data(x, y)
-
-        #     return line,
-
-        # # call the animator.  blit=True means only re-draw the parts that have changed.
-        # anim = animation.FuncAnimation(fig, animate, init_func=init,
-        #                                frames=len(self.historic_zeta)-1,
-        #                                interval=20, blit=True)
-
-        # # save the animation as an mp4.  This requires ffmpeg or mencoder to be
-        # # installed.  The extra_args ensure that the x264 codec is used, so that
-        # # the video can be embedded in html5.  You may need to adjust this for
-        # # your system: for more information, see
-        # # http://matplotlib.sourceforge.net/api/animation_api.html
-        # anim.save('basic_animation.mp4', fps=30)
-
-        # plt.show()
-
-        # from matplotlib.animation import FuncAnimation
-
-        # fig, ax = plt.subplots()
-        # xdata, ydata = [], []
-        # ln, = plt.plot([], [], 'ro')
-
-        # def init():
-        #     ax.set_xlim(0, 2*np.pi)
-        #     ax.set_ylim(-1, 1)
-        #     ax = self.env.plot(ax)
-        #     return ln,
-
-        # def update(frame):
-        #     xdata.append(frame)
-        #     ydata.append(np.sin(frame))
-        #     ln.set_data(xdata, ydata)
-        #     return ln,
-
-        # ani = FuncAnimation(fig, update, frames=np.linspace(0, 2*np.pi, 128),
-        #                     init_func=init, blit=True)
-        # plt.show()
 
     def simulation(self):
 
@@ -928,10 +880,6 @@ class Algorithm:
             self.historic_actions.append(action)
 
         self.plot()
-        # plt.show()
-
-        # self.animate()
-        # plt.show()
 
         torch.save(self.net_J.state_dict(), 'weights_net_J')
         torch.save(self.net_f.state_dict(), 'weights_net_f')
