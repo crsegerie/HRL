@@ -262,7 +262,7 @@ class Net_f(nn.Module):
 
 class Algorithm:
     def __init__(self, env, agent, net_J, net_f,
-                 time_step, eps, gamma, tau, N_iter, N_save_weights, N_print, learning_rate,
+                 time_step, eps, gamma, tau, N_iter, cycle_plot, N_save_weights, N_print, learning_rate,
                  actions_controls, constraints, min_time_sleep, max_tired, asym_coeff, min_resource, nb_actions):
         """
         """
@@ -277,6 +277,8 @@ class Algorithm:
         self.gamma = gamma  # The discount factor.
         self.tau = tau  # the smoothing update parameter. Not implemented.
         self.N_iter = N_iter
+        self.cycle_plot = cycle_plot
+
         # Periodic saving of the weights of J and f.
         self.N_save_weights = N_save_weights
         self.N_print = N_print  # Periodic print of the zeta.
@@ -816,7 +818,7 @@ class Algorithm:
         ax.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
         ax.set_title("Position and orientation of the agent")
 
-    def plot(self, n_step: int = 1, scale=5):
+    def plot(self, frame,  scale=5):
         """Plot the position, angle and the ressources of the agent.
 
         - time, ressources, historic in transparence -> faire une fonction plot en dehors de l'agent
@@ -824,7 +826,7 @@ class Algorithm:
 
         Parameters:
         -----------
-        n_step: We save the figure each n_step.
+        frame :int
 
         Returns:
         --------
@@ -833,41 +835,41 @@ class Algorithm:
 
         is_inside = self.compute_mask(scale=scale)
 
-        for frame, zeta in enumerate(self.historic_zeta[:-1:n_step]):
+        zeta =self.historic_zeta[frame]
 
-            fig = plt.figure(figsize=(16, 16))
-            shape = (4, 4)
-            ax_resource = plt.subplot2grid(shape, (0, 0), colspan=4)
-            ax_env = plt.subplot2grid(shape, (1, 0), colspan=2, rowspan=2)
-            ax_loss = plt.subplot2grid(shape, (1, 2), colspan=2, rowspan=2)
-            axs_J = [None]*4
-            axs_J[0] = plt.subplot2grid(shape, (3, 0))
-            axs_J[1] = plt.subplot2grid(shape, (3, 1))
-            axs_J[2] = plt.subplot2grid(shape, (3, 2))
-            axs_J[3] = plt.subplot2grid(shape, (3, 3))
+        fig = plt.figure(figsize=(16, 16))
+        shape = (4, 4)
+        ax_resource = plt.subplot2grid(shape, (0, 0), colspan=4)
+        ax_env = plt.subplot2grid(shape, (1, 0), colspan=2, rowspan=2)
+        ax_loss = plt.subplot2grid(shape, (1, 2), colspan=2, rowspan=2)
+        axs_J = [None]*4
+        axs_J[0] = plt.subplot2grid(shape, (3, 0))
+        axs_J[1] = plt.subplot2grid(shape, (3, 1))
+        axs_J[2] = plt.subplot2grid(shape, (3, 2))
+        axs_J[3] = plt.subplot2grid(shape, (3, 3))
 
-            last_action = self.historic_actions[frame]
+        last_action = self.historic_actions[frame]
 
-            fig.suptitle(
-                (f'Dashboard. Frame: {frame} - last action: '
-                 f'{last_action}: {meaning_actions[last_action]} '),
-                fontsize=16)
+        fig.suptitle(
+            (f'Dashboard. Frame: {frame} - last action: '
+                f'{last_action}: {meaning_actions[last_action]} '),
+            fontsize=16)
 
-            self.plot_position(ax=ax_env, zeta=zeta,
-                               controls_turn=controls_turn)
+        self.plot_position(ax=ax_env, zeta=zeta,
+                            controls_turn=controls_turn)
 
-            self.plot_ressources(ax=ax_resource, frame=frame)
+        self.plot_ressources(ax=ax_resource, frame=frame)
 
-            for resource in range(4):
-                self.plot_J(ax=axs_J[resource],
-                            fig=fig, resource=resource+1,
-                            scale=scale, is_inside=is_inside)
+        for resource in range(4):
+            self.plot_J(ax=axs_J[resource],
+                        fig=fig, resource=resource+1,
+                        scale=scale, is_inside=is_inside)
 
-            plt.tight_layout()
-            name_fig = f"images/frame_{frame}"
-            plt.savefig(name_fig)
-            print(name_fig)
-            plt.close(fig)
+        plt.tight_layout()
+        name_fig = f"images/frame_{frame}"
+        plt.savefig(name_fig)
+        print(name_fig)
+        plt.close(fig)
 
     def simulation(self):
 
@@ -879,7 +881,8 @@ class Algorithm:
             self.historic_zeta.append(self.agent.zeta)
             self.historic_actions.append(action)
 
-        self.plot()
+            if k%self.cycle_plot == 0:
+                self.plot(k)
 
         torch.save(self.net_J.state_dict(), 'weights_net_J')
         torch.save(self.net_f.state_dict(), 'weights_net_f')
@@ -938,7 +941,8 @@ time_step = 1
 eps = 0.3
 gamma = 0.99
 tau = 0.001  # not used yet (linked with the target function)
-N_iter = 3
+N_iter = 10
+cycle_plot = 2
 N_save_weights = 1000  # save neural networks weights every N_save_weights step
 N_print = 1
 learning_rate = 0.001
@@ -1029,8 +1033,10 @@ asym_coeff = 100
 min_resource = 0.1
 
 algo = Algorithm(env, agent, net_J, net_f,
-                 time_step, eps, gamma, tau, N_iter, N_save_weights, N_print, learning_rate,
-                 actions_controls, constraints, min_time_sleep, max_tired, asym_coeff,
+                 time_step, eps, gamma, tau, N_iter, cycle_plot, N_save_weights,
+                  N_print, learning_rate,
+                 actions_controls, constraints, min_time_sleep, 
+                 max_tired, asym_coeff,
                  min_resource, nb_actions)
 
 
