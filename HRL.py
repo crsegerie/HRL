@@ -13,7 +13,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import seaborn as sns
+
+from utils import set_all_seeds
+
+# Random seed
+seed = 0
+set_all_seeds(seed)
 
 
 class Environment:
@@ -270,7 +275,7 @@ class Net_f(nn.Module):
 
 class Algorithm:
     def __init__(self, env, agent, net_J, net_f,
-                 time_step, eps, gamma, tau, N_iter, cycle_plot, N_save_weights, N_print, learning_rate,
+                 time_step, eps, gamma, tau, N_iter, cycle_plot, N_rolling, N_save_weights, N_print, learning_rate,
                  actions_controls, constraints, min_time_sleep, max_tired, asym_coeff, min_resource, nb_actions):
         """
         """
@@ -286,6 +291,7 @@ class Algorithm:
         self.tau = tau  # the smoothing update parameter. Not implemented.
         self.N_iter = N_iter
         self.cycle_plot = cycle_plot
+        self.N_rolling = 1  # rolling average
 
         # Periodic saving of the weights of J and f.
         self.N_save_weights = N_save_weights
@@ -318,7 +324,7 @@ class Algorithm:
 
         self.historic_zeta = []
         self.historic_actions = []
-        self.historic_losses = [] # will contain a list of 2d [L_f, L_J]
+        self.historic_losses = []  # will contain a list of 2d [L_f, L_J]
 
     def actions_possible(self):
         """
@@ -820,7 +826,8 @@ class Algorithm:
 
         df = pd.DataFrame(self.historic_losses[:frame+1],
                           columns=loss_meaning)
-        df.plot(ax=ax, grid=True, logy=True)  # TODO
+        df = df.rolling(window=self.N_rolling).mean()
+        df.plot(ax=ax, grid=True, logy=True)
         ax.set_ylabel('value of the losses')
         ax.set_xlabel('frames')
         ax.set_title("Evolution of the log-loss")
@@ -869,7 +876,7 @@ class Algorithm:
 
         is_inside = self.compute_mask(scale=scale)
 
-        zeta =self.historic_zeta[frame]
+        zeta = self.historic_zeta[frame]
 
         fig = plt.figure(figsize=(16, 16))
         shape = (4, 4)
@@ -890,7 +897,7 @@ class Algorithm:
             fontsize=16)
 
         self.plot_position(ax=ax_env, zeta=zeta,
-                            controls_turn=controls_turn)
+                           controls_turn=controls_turn)
 
         self.plot_ressources(ax=ax_resource, frame=frame)
         self.plot_loss(ax=ax_loss, frame=frame)
@@ -917,7 +924,7 @@ class Algorithm:
             self.historic_actions.append(action)
             self.historic_losses.append(loss)
 
-            if k%self.cycle_plot == 0:
+            if k % self.cycle_plot == 0:
                 self.plot(k)
 
         torch.save(self.net_J.state_dict(), 'weights_net_J')
@@ -977,8 +984,9 @@ time_step = 1
 eps = 0.3
 gamma = 0.99
 tau = 0.001  # not used yet (linked with the target function)
-N_iter = 10
-cycle_plot = 9
+N_iter = 100
+cycle_plot = 99
+N_rolling = 1
 N_save_weights = 1000  # save neural networks weights every N_save_weights step
 N_print = 1
 learning_rate = 0.001
@@ -1069,9 +1077,9 @@ asym_coeff = 100
 min_resource = 0.1
 
 algo = Algorithm(env, agent, net_J, net_f,
-                 time_step, eps, gamma, tau, N_iter, cycle_plot, N_save_weights,
-                  N_print, learning_rate,
-                 actions_controls, constraints, min_time_sleep, 
+                 time_step, eps, gamma, tau, N_iter, cycle_plot, N_rolling, N_save_weights,
+                 N_print, learning_rate,
+                 actions_controls, constraints, min_time_sleep,
                  max_tired, asym_coeff,
                  min_resource, nb_actions)
 
