@@ -1,6 +1,14 @@
+"""Homeostatic reinforcement learning.
+
+Described in the paper: 
+Continuous Homeostatic Reinforcement Learning 
+for Self-Regulated Autonomous Agents.
+"""
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib.colors import Normalize
+import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
@@ -310,6 +318,7 @@ class Algorithm:
 
         self.historic_zeta = []
         self.historic_actions = []
+        self.historic_losses = [] # will contain a list of 2d [L_f, L_J]
 
     def actions_possible(self):
         """
@@ -601,7 +610,7 @@ class Algorithm:
 
         Returns
         -------
-        action: int"""
+        (action, loss): int, np.ndarray"""
         # if you are exacly on 0 (empty resource) you get stuck
         # because of the nature of the differential equation.
         for i in range(6):
@@ -683,7 +692,7 @@ class Algorithm:
         self.agent.zeta = new_zeta
 
         if (k % self.N_print) == 0:
-            print("Iteration:", k, "/", self.N_iter)
+            print("Iteration:", k, "/", self.N_iter - 1)
             print("Action:", action)
             print("zeta:", self.agent.zeta)
             print("")
@@ -692,7 +701,8 @@ class Algorithm:
             torch.save(self.net_J.state_dict(), 'weights_net_J')
             torch.save(self.net_f.state_dict(), 'weights_net_f')
 
-        return action
+        loss = np.array([Loss_f.detach().numpy(), Loss_J.detach().numpy()[0]])
+        return action, loss
 
     def compute_mask(self, scale):
         """Compute the mask.
@@ -770,8 +780,6 @@ class Algorithm:
         Warning : abscisse is not time but step!
         """
 
-        import pandas as pd
-
         zeta_meaning = [
             "resource_1",
             "resource_2",
@@ -790,6 +798,32 @@ class Algorithm:
         ax.set_ylabel('value')
         ax.set_xlabel('frames')
         ax.set_title("Evolution of the resource")
+
+    def plot_loss(self, ax, frame):
+        """Plot the loss in order to control the learning of the agent.
+
+        Parameters:
+        -----------
+        ax: SubplotBase
+        frame: int
+
+        Returns:
+        --------
+        None
+        Warning : abscisse is not time but step!
+        """
+
+        loss_meaning = [
+            "Loss of the transition function $L_f$",
+            "Loss of the deviation function $L_J$",
+        ]
+
+        df = pd.DataFrame(self.historic_losses[:frame+1],
+                          columns=loss_meaning)
+        df.plot(ax=ax, grid=True, logy=True)  # TODO
+        ax.set_ylabel('value of the losses')
+        ax.set_xlabel('frames')
+        ax.set_title("Evolution of the log-loss")
 
     def plot_position(self, ax, zeta, controls_turn):
         """Plot the position with an arrow.
@@ -859,6 +893,7 @@ class Algorithm:
                             controls_turn=controls_turn)
 
         self.plot_ressources(ax=ax_resource, frame=frame)
+        self.plot_loss(ax=ax_loss, frame=frame)
 
         for resource in range(4):
             self.plot_J(ax=axs_J[resource],
@@ -875,11 +910,12 @@ class Algorithm:
 
         for k in range(self.N_iter):
             print(k)
-            action = self.simulation_one_step(k)
+            action, loss = self.simulation_one_step(k)
 
             # save historic
             self.historic_zeta.append(self.agent.zeta)
             self.historic_actions.append(action)
+            self.historic_losses.append(loss)
 
             if k%self.cycle_plot == 0:
                 self.plot(k)
@@ -942,7 +978,7 @@ eps = 0.3
 gamma = 0.99
 tau = 0.001  # not used yet (linked with the target function)
 N_iter = 10
-cycle_plot = 2
+cycle_plot = 9
 N_save_weights = 1000  # save neural networks weights every N_save_weights step
 N_print = 1
 learning_rate = 0.001
