@@ -5,6 +5,7 @@ Continuous Homeostatic Reinforcement Learning
 for Self-Regulated Autonomous Agents.
 """
 
+from config import Cfg_env, Cfg_agent, Cfg_nets, Cfg_algo, Cfg_actions
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib.colors import Normalize
@@ -22,18 +23,18 @@ set_all_seeds(seed)
 
 
 class Environment:
-    def __init__(self, coord_env, coord_circ):
-        self.coord_env = coord_env
-        self.coord_circ = coord_circ
+    def __init__(self, cfg: Cfg_env):
+        self.cfg_env = cfg
 
     def is_point_inside(self, x, y):
         """Check if a point (x,y) is inside the polygon"""
-        lab = list(self.coord_env.keys())
+        coords = self.cfg_env.coord_env
+        lab = list(coords.keys())
         n_left = 0
         for i in range(0, len(lab) - 2, 2):
-            if (((self.coord_env[lab[i + 1]] > y) and (self.coord_env[lab[i + 3]] <= y)) or ((self.coord_env[lab[i + 1]] <= y) and (self.coord_env[lab[i + 3]] > y))) and (self.coord_env[lab[i]] <= x):
+            if (((coords[lab[i + 1]] > y) and (coords[lab[i + 3]] <= y)) or ((coords[lab[i + 1]] <= y) and (coords[lab[i + 3]] > y))) and (coords[lab[i]] <= x):
                 n_left += 1
-        if (((self.coord_env[lab[len(lab) - 1]] > y) and (self.coord_env[lab[1]] <= y)) or ((self.coord_env[lab[len(lab) - 1]] <= y) and (self.coord_env[lab[1]] > y))) and (self.coord_env[lab[len(lab) - 1]] <= x):
+        if (((coords[lab[len(lab) - 1]] > y) and (coords[lab[1]] <= y)) or ((coords[lab[len(lab) - 1]] <= y) and (coords[lab[1]] > y))) and (coords[lab[len(lab) - 1]] <= x):
             n_left += 1
         if n_left % 2 == 1:
             return True
@@ -43,47 +44,48 @@ class Environment:
     def is_segment_inside(self, xa, xb, ya, yb):
         """Check if the segment AB with A(xa, ya) and B(xb, yb) is completely inside
         the polygon"""
-        lab = list(self.coord_env.keys()) + list(self.coord_env.keys())[:2]
+        coords = self.cfg_env.coord_env
+        lab = list(coords.keys()) + list(coords.keys())[:2]
         n_inter = 0
         if (xa != xb):
             alpha_1 = (yb - ya) / (xb - xa)
             beta_1 = (ya * xb - yb * xa) / (xb - xa)
             for i in range(0, len(lab) - 2, 2):
-                if self.coord_env[lab[i]] == self.coord_env[lab[i + 2]]:
-                    inter = [self.coord_env[lab[i]], alpha_1 *
-                             self.coord_env[lab[i]] + beta_1]
+                if coords[lab[i]] == coords[lab[i + 2]]:
+                    inter = [coords[lab[i]], alpha_1 *
+                             coords[lab[i]] + beta_1]
                     inter_in_AB = (inter[0] >= np.minimum(xa, xb)) and (inter[0] <= np.maximum(
                         xa, xb)) and (inter[1] >= np.minimum(ya, yb)) and (inter[1] <= np.maximum(ya, yb))
-                    inter_in_border = (inter[0] >= np.minimum(self.coord_env[lab[i]], self.coord_env[lab[i + 2]])) and (inter[0] <= np.maximum(self.coord_env[lab[i]], self.coord_env[lab[i + 2]])) and (
-                        inter[1] >= np.minimum(self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]])) and (inter[1] <= np.maximum(self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]]))
+                    inter_in_border = (inter[0] >= np.minimum(coords[lab[i]], coords[lab[i + 2]])) and (inter[0] <= np.maximum(coords[lab[i]], coords[lab[i + 2]])) and (
+                        inter[1] >= np.minimum(coords[lab[i + 1]], coords[lab[i + 3]])) and (inter[1] <= np.maximum(coords[lab[i + 1]], coords[lab[i + 3]]))
                     if inter_in_AB and inter_in_border:
                         n_inter += 1
                 else:
                     if ya == yb:
-                        if ya == self.coord_env[lab[i + 1]]:
-                            if (np.minimum(xa, xb) <= np.maximum(self.coord_env[lab[i]], self.coord_env[lab[i + 2]])) and (np.maximum(xa, xb) >= np.minimum(self.coord_env[lab[i]], self.coord_env[lab[i + 2]])):
+                        if ya == coords[lab[i + 1]]:
+                            if (np.minimum(xa, xb) <= np.maximum(coords[lab[i]], coords[lab[i + 2]])) and (np.maximum(xa, xb) >= np.minimum(coords[lab[i]], coords[lab[i + 2]])):
                                 n_inter += 1
                     else:
-                        inter = [(self.coord_env[lab[i + 1]] - beta_1) /
-                                 alpha_1, self.coord_env[lab[i + 1]]]
+                        inter = [(coords[lab[i + 1]] - beta_1) /
+                                 alpha_1, coords[lab[i + 1]]]
                         inter_in_AB = (inter[0] >= np.minimum(xa, xb)) and (inter[0] <= np.maximum(
                             xa, xb)) and (inter[1] >= np.minimum(ya, yb)) and (inter[1] <= np.maximum(ya, yb))
-                        inter_in_border = (inter[0] >= np.minimum(self.coord_env[lab[i]], self.coord_env[lab[i + 2]])) and (inter[0] <= np.maximum(self.coord_env[lab[i]], self.coord_env[lab[i + 2]])) and (
-                            inter[1] >= np.minimum(self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]])) and (inter[1] <= np.maximum(self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]]))
+                        inter_in_border = (inter[0] >= np.minimum(coords[lab[i]], coords[lab[i + 2]])) and (inter[0] <= np.maximum(coords[lab[i]], coords[lab[i + 2]])) and (
+                            inter[1] >= np.minimum(coords[lab[i + 1]], coords[lab[i + 3]])) and (inter[1] <= np.maximum(coords[lab[i + 1]], coords[lab[i + 3]]))
                         if inter_in_AB and inter_in_border:
                             n_inter += 1
         else:
             for i in range(0, len(lab) - 2, 2):
-                if self.coord_env[lab[i]] == self.coord_env[lab[i + 2]]:
-                    if xa == self.coord_env[lab[i]]:
-                        if (np.minimum(ya, yb) <= np.maximum(self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]])) and (np.maximum(ya, yb) >= np.minimum(self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]])):
+                if coords[lab[i]] == coords[lab[i + 2]]:
+                    if xa == coords[lab[i]]:
+                        if (np.minimum(ya, yb) <= np.maximum(coords[lab[i + 1]], coords[lab[i + 3]])) and (np.maximum(ya, yb) >= np.minimum(coords[lab[i + 1]], coords[lab[i + 3]])):
                             n_inter += 1
                 else:
-                    inter = [xa, self.coord_env[lab[i + 1]]]
+                    inter = [xa, coords[lab[i + 1]]]
                     inter_in_AB = (inter[0] >= np.minimum(xa, xb)) and (inter[0] <= np.maximum(
                         xa, xb)) and (inter[1] >= np.minimum(ya, yb)) and (inter[1] <= np.maximum(ya, yb))
-                    inter_in_border = (inter[0] >= np.minimum(self.coord_env[lab[i]], self.coord_env[lab[i + 2]])) and (inter[0] <= np.maximum(self.coord_env[lab[i]], self.coord_env[lab[i + 2]])) and (
-                        inter[1] >= np.minimum(self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]])) and (inter[1] <= np.maximum(self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]]))
+                    inter_in_border = (inter[0] >= np.minimum(coords[lab[i]], coords[lab[i + 2]])) and (inter[0] <= np.maximum(coords[lab[i]], coords[lab[i + 2]])) and (
+                        inter[1] >= np.minimum(coords[lab[i + 1]], coords[lab[i + 3]])) and (inter[1] <= np.maximum(coords[lab[i + 1]], coords[lab[i + 3]]))
                     if inter_in_AB and inter_in_border:
                         n_inter += 1
         if n_inter > 0:
@@ -103,20 +105,20 @@ class Environment:
         -------
         Returns nothing. Only inplace update ax.
         """
-
+        coords = self.cfg_env.coord_env
         if ax is None:
             ax = plt.subplot(111)
 
-        lab = list(self.coord_env.keys())
+        lab = list(coords.keys())
         for i in range(0, len(lab) - 2, 2):
-            ax.plot([self.coord_env[lab[i]], self.coord_env[lab[i + 2]]],
-                    [self.coord_env[lab[i + 1]], self.coord_env[lab[i + 3]]],
+            ax.plot([coords[lab[i]], coords[lab[i + 2]]],
+                    [coords[lab[i + 1]], coords[lab[i + 3]]],
                     '-', color='black', lw=2)
-        ax.plot([self.coord_env[lab[len(lab) - 2]], self.coord_env[lab[0]]],
-                [self.coord_env[lab[len(lab) - 1]], self.coord_env[lab[1]]],
+        ax.plot([coords[lab[len(lab) - 2]], coords[lab[0]]],
+                [coords[lab[len(lab) - 1]], coords[lab[1]]],
                 '-', color='black', lw=2)
 
-        for circle_name, circle in self.coord_circ.items():
+        for circle_name, circle in self.cfg_env.coord_circ.items():
             x = circle[0]
             y = circle[1]
             r = circle[2]
@@ -932,157 +934,20 @@ class Algorithm:
         torch.save(self.net_f.state_dict(), 'weights_net_f')
 
 
-# Simulation
-coord_env = {'xa': 1, 'ya': 1,
-             'xb': 1, 'yb': 5,
-             'xc': 2, 'yc': 5,
-             'xd': 2, 'yd': 3,
-             'xe': 3, 'ye': 3,
-             'xf': 3, 'yf': 4,
-             'xg': 4, 'yg': 4,
-             'xh': 4, 'yh': 6,
-             'xi': 9, 'yi': 6,
-             'xj': 9, 'yj': 5,
-             'xk': 6, 'yk': 5,
-             'xl': 6, 'yl': 3,
-             'xm': 7, 'ym': 3,
-             'xn': 7, 'yn': 0,
-             'xo': 6, 'yo': 0,
-             'xp': 6, 'yp': 2,
-             'xq': 5, 'yq': 2,
-             'xr': 5, 'yr': 1}
+cfg_env = Cfg_env()
+cfg_agent = Cfg_agent()
+cfg_nets = Cfg_nets()
+cfg_algo = Cfg_algo()
+cfg_actions = Cfg_actions()
 
-# x, y, r, color
-coord_circ = {'circle_1': [1.5, 4.25, 0.3, 'red'],
-              'circle_2': [4.5, 1.5, 0.3, 'blue'],
-              'circle_3': [8, 5.5, 0.3, 'orange'],
-              'circle_4': [6.5, 0.75, 0.3, 'green']}
+env = Environment(cfg_env)
+agent = Agent(cfg_agent)
 
-env = Environment(coord_env, coord_circ)
-
-# homeostatic point
-# Resources 1, 2, 3, 4 and muscular fatigues and sleep fatigue
-x_star = np.array([1, 2, 3, 4, 0, 0])
-
-# parameters of the function f
-# same + x, y, and angle coordinates
-c = np.array([-0.05, -0.05, -0.05, -0.05, -0.008, 0.0005, 0, 0, 0])
-
-# Not used currently
-angle_visual_field = np.pi / 10
-
-agent = Agent(x_star, c, angle_visual_field)
-
-
-n_neurons = 128
-dropout_rate = 0.15
-
-net_J = Net_J(n_neurons, dropout_rate)
-net_f = Net_f(n_neurons, dropout_rate)
-
-
-time_step = 1
-eps = 0.3
-gamma = 0.99
-tau = 0.001  # not used yet (linked with the target function)
-N_iter = 10
-cycle_plot = 9
-N_rolling = 5
-N_save_weights = 1000  # save neural networks weights every N_save_weights step
-N_print = 1
-learning_rate = 0.001
-
-
-# We discretized the angles in order no to spin without moving
-# The controls for walking and running for each angle is pre-computed
-num_pos_angles = 5
-controls_turn = [[np.cos(2 * np.pi / num_pos_angles * i),
-                  np.sin(2 * np.pi / num_pos_angles * i)]
-                 for i in range(num_pos_angles)]
-
-control_walking = [np.array([0, 0, 0, 0, 0.01, 0,  # homeostatic resources
-                             0.1 * controls_turn[i][0],  # x
-                             0.1 * controls_turn[i][1],  # y
-                             0])  # angle
-                   for i in range(num_pos_angles)]
-control_running = [np.array([0, 0, 0, 0, 0.05, 0,
-                             0.3 * controls_turn[i][0],
-                             0.3 * controls_turn[i][1],
-                             0])
-                   for i in range(num_pos_angles)]
-
-
-# For each action, there is a control verifying for example that
-# the muscular tiredness enables the agent to walk.
-# for example, for the first action (walking), we verify that the tiredness is not above 6.
-# For the second action (running), we verify that the tiredness is not above 3.
-actions_controls = [
-    # walking
-    control_walking,  # -> constraints[0]
-    # running
-    control_running,  # -> constraints[1]
-    # turning an angle to the left
-    np.array([0, 0, 0, 0, 0.001, 0, 0, 0, 0]),  # etc...
-    # turning an angle to the right
-    np.array([0, 0, 0, 0, 0.001, 0, 0, 0, 0]),
-    # sleeping
-    np.array([0, 0, 0, 0, 0, -0.001, 0, 0, 0]),
-    # get resource 1
-    np.array([0.1, 0, 0, 0, 0, 0, 0, 0, 0]),
-    # get resource 2
-    np.array([0, 0.1, 0, 0, 0, 0, 0, 0, 0]),
-    # get resource 3
-    np.array([0, 0, 0.1, 0, 0, 0, 0, 0, 0]),
-    # get resource 4
-    np.array([0, 0, 0, 0.1, 0, 0, 0, 0, 0]),
-    # not doing anything
-    np.array([0, 0, 0, 0, 0, 0, 0, 0, 0])]
-# Keep in mind that the agent looses resources and energy even
-# if he does nothing via the function f.
-
-# there are 4 additionnal actions : Going to the 4 resource and eating
-nb_actions = len(actions_controls) + 4
-
-
-meaning_actions = {
-    0: "walking",
-    1: "running",
-    2: "turning trigo",
-    3: "turning anti trigo",
-    4: "sleeping",
-    5: "get resource 1",
-    6: "get resource 2",
-    7: "get resource 3",
-    8: "get resource 4",
-    9: "not doing anything",
-    10: "going direcly to resource 1",
-    11: "going direcly to resource 2",
-    12: "going direcly to resource 3",
-    13: "going direcly to resource 4",
-}
-
-
-# Same order of action as actions_controls
-# Constraint verify the tiredness. There are tree types of tiredness:
-# - muscular tiredness (M)
-# - and sleep tiredness (S)
-# - max_food_in_the_stomach (F)
-#                M, M, M, M, S, F,  F,  F,  F,  (*)
-# constraints = [6, 3, 6, 6, 1, 15, 15, 15, 15, None]
-constraints = [6, 3, 6, 6, 1, 8, 8, 8, 8, None]
-# (*) There is not any constraint when you do anything.
-
-min_time_sleep = 1000  # ratio of the minimum sleep time for the agent and the time_step
-max_tired = 10
-asym_coeff = 100
-min_resource = 0.1
+net_J = Net_J(cfg_nets)
+net_f = Net_f(cfg_nets)
 
 algo = Algorithm(env, agent, net_J, net_f,
-                 time_step, eps, gamma, tau, N_iter, cycle_plot, N_rolling, N_save_weights,
-                 N_print, learning_rate,
-                 actions_controls, constraints, min_time_sleep,
-                 max_tired, asym_coeff,
-                 min_resource, nb_actions)
+                 cfg_algo, cfg_actions)
 
 
 algo.simulation()
