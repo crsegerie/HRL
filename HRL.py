@@ -5,11 +5,10 @@ Continuous Homeostatic Reinforcement Learning
 for Self-Regulated Autonomous Agents.
 """
 
-from config import Cfg_env, Cfg_agent, Cfg_nets, Cfg_algo, Cfg_actions
+from config import Cfg_env, Cfg_agent, Cfg_nets
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
-from matplotlib.colors import Normalize
-import pandas as pd
+
 import numpy as np
 import torch
 import torch.nn as nn

@@ -1,5 +1,8 @@
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+import pandas as pd
 from HRL import Agent, Net_J, Net_f
 
 
@@ -32,17 +35,17 @@ class Algorithm:
         # We discretized the angles in order no to spin without moving
         # The controls for walking and running for each angle is pre-computed
         num_pos_angles = 5
-        controls_turn = [[np.cos(2 * np.pi / num_pos_angles * i),
-                          np.sin(2 * np.pi / num_pos_angles * i)]
-                         for i in range(num_pos_angles)]
+        self.controls_turn = [[np.cos(2 * np.pi / num_pos_angles * i),
+                               np.sin(2 * np.pi / num_pos_angles * i)]
+                              for i in range(num_pos_angles)]
         control_walking = [np.array([0, 0, 0, 0, 0.01, 0,  # homeostatic resources
-                                    0.1 * controls_turn[i][0],  # x
-                                    0.1 * controls_turn[i][1],  # y
+                                    0.1 * self.controls_turn[i][0],  # x
+                                    0.1 * self.controls_turn[i][1],  # y
                                     0])  # angle
                            for i in range(num_pos_angles)]
         control_running = [np.array([0, 0, 0, 0, 0.05, 0,
-                                    0.3 * controls_turn[i][0],
-                                    0.3 * controls_turn[i][1],
+                                    0.3 * self.controls_turn[i][0],
+                                    0.3 * self.controls_turn[i][1],
                                     0])
                            for i in range(num_pos_angles)]
 
@@ -557,7 +560,7 @@ class Algorithm:
         None
         """
 
-        algo.net_J.eval()
+        self.net_J.eval()
 
         n_X = 9*scale
         n_Y = 6*scale
@@ -574,7 +577,7 @@ class Algorithm:
                     zeta = np.array([0, 0, 0, 0, 0, 0, i/scale, j/scale, 0])
                     zeta[resource-1] = -self.agent.x_star[resource-1]
                     zeta_to_J = torch.from_numpy(zeta).float()
-                    values[i, j] = algo.net_J(zeta_to_J).detach().numpy()
+                    values[i, j] = self.net_J(zeta_to_J).detach().numpy()
 
         im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
         ax.axis('off')
@@ -641,7 +644,7 @@ class Algorithm:
         ax.set_ylabel('value of the losses')
         ax.set_xlabel('frames')
         ax.set_title(
-            f"Evolution of the log-loss (moving average with {N_rolling} frames)")
+            f"Evolution of the log-loss (moving average with {self.N_rolling} frames)")
 
     def plot_position(self, ax, zeta, controls_turn):
         """Plot the position with an arrow.
@@ -704,11 +707,11 @@ class Algorithm:
 
         fig.suptitle(
             (f'Dashboard. Frame: {frame} - last action: '
-                f'{last_action}: {meaning_actions[last_action]} '),
+                f'{last_action}: {self.meaning_actions[last_action]} '),
             fontsize=16)
 
         self.plot_position(ax=ax_env, zeta=zeta,
-                           controls_turn=controls_turn)
+                           controls_turn=self.controls_turn)
 
         self.plot_ressources(ax=ax_resource, frame=frame)
         self.plot_loss(ax=ax_loss, frame=frame)
