@@ -3,7 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 import pandas as pd
-from HRL import Agent, Net_J, Net_f
+
+
+from agent import Agent
+from nets import Net_J, Net_f
 
 
 class Algorithm:
@@ -12,7 +15,7 @@ class Algorithm:
         # ALGOS METAPARAMETERS ##################################
 
         # Iterations
-        self.N_iter = 10
+        self.N_iter = 100
         self.time_step = 1
 
         # RL learning

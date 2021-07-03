@@ -5,3 +5,4 @@ weights_net_J
 Submission.csv
 Paper_HRL.pdf
 NIPS-2011-a-reinforcement-learning-theory-for-homeostatic-regulation-Paper.pdf
+*.pyc
