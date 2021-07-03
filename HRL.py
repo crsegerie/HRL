@@ -291,7 +291,7 @@ class Algorithm:
         self.tau = tau  # the smoothing update parameter. Not implemented.
         self.N_iter = N_iter
         self.cycle_plot = cycle_plot
-        self.N_rolling = 1  # rolling average
+        self.N_rolling = N_rolling  # rolling average
 
         # Periodic saving of the weights of J and f.
         self.N_save_weights = N_save_weights
@@ -830,7 +830,8 @@ class Algorithm:
         df.plot(ax=ax, grid=True, logy=True)
         ax.set_ylabel('value of the losses')
         ax.set_xlabel('frames')
-        ax.set_title("Evolution of the log-loss")
+        ax.set_title(
+            f"Evolution of the log-loss (moving average with {N_rolling} frames)")
 
     def plot_position(self, ax, zeta, controls_turn):
         """Plot the position with an arrow.
@@ -984,9 +985,9 @@ time_step = 1
 eps = 0.3
 gamma = 0.99
 tau = 0.001  # not used yet (linked with the target function)
-N_iter = 100
-cycle_plot = 99
-N_rolling = 1
+N_iter = 10
+cycle_plot = 9
+N_rolling = 5
 N_save_weights = 1000  # save neural networks weights every N_save_weights step
 N_print = 1
 learning_rate = 0.001
