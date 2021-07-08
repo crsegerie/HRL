@@ -41,15 +41,17 @@ class Algorithm:
         self.controls_turn = [[np.cos(2 * np.pi / num_pos_angles * i),
                                np.sin(2 * np.pi / num_pos_angles * i)]
                               for i in range(num_pos_angles)]
-        control_walking = [np.array([0, 0, 0, 0, 0.01, 0,  # homeostatic resources
-                                    0.1 * self.controls_turn[i][0],  # x
-                                    0.1 * self.controls_turn[i][1],  # y
-                                    0])  # angle
+        self.controls_turn = torch.Tensor(self.controls_turn)
+
+        control_walking = [[0, 0, 0, 0, 0.01, 0,  # homeostatic resources
+                            0.1 * self.controls_turn[i][0],  # x
+                            0.1 * self.controls_turn[i][1],  # y
+                            0]  # angle
                            for i in range(num_pos_angles)]
-        control_running = [np.array([0, 0, 0, 0, 0.05, 0,
-                                    0.3 * self.controls_turn[i][0],
-                                    0.3 * self.controls_turn[i][1],
-                                    0])
+        control_running = [[0, 0, 0, 0, 0.05, 0,
+                            0.3 * self.controls_turn[i][0],
+                            0.3 * self.controls_turn[i][1],
+                            0]
                            for i in range(num_pos_angles)]
 
         # a list mapping the action to a control.
@@ -65,23 +67,25 @@ class Algorithm:
             # running
             control_running,  # -> constraints[1]
             # turning an angle to the left
-            np.array([0, 0, 0, 0, 0.001, 0, 0, 0, 0]),  # etc...
+            [0, 0, 0, 0, 0.001, 0, 0, 0, 0],  # etc...
             # turning an angle to the right
-            np.array([0, 0, 0, 0, 0.001, 0, 0, 0, 0]),
+            [0, 0, 0, 0, 0.001, 0, 0, 0, 0],
             # sleeping
-            np.array([0, 0, 0, 0, 0, -0.001, 0, 0, 0]),
+            [0, 0, 0, 0, 0, -0.001, 0, 0, 0],
             # get resource 1
-            np.array([0.1, 0, 0, 0, 0, 0, 0, 0, 0]),
+            [0.1, 0, 0, 0, 0, 0, 0, 0, 0],
             # get resource 2
-            np.array([0, 0.1, 0, 0, 0, 0, 0, 0, 0]),
+            [0, 0.1, 0, 0, 0, 0, 0, 0, 0],
             # get resource 3
-            np.array([0, 0, 0.1, 0, 0, 0, 0, 0, 0]),
+            [0, 0, 0.1, 0, 0, 0, 0, 0, 0],
             # get resource 4
-            np.array([0, 0, 0, 0.1, 0, 0, 0, 0, 0]),
+            [0, 0, 0, 0.1, 0, 0, 0, 0, 0],
             # not doing anything
-            np.array([0, 0, 0, 0, 0, 0, 0, 0, 0])]
+            [0, 0, 0, 0, 0, 0, 0, 0, 0]]
         # Keep in mind that the agent looses resources and energy even
         # if he does nothing via the function f.
+        self.actions_controls = [torch.Tensor(
+            x) for x in self.actions_controls]
 
         # there are 4 additionnal actions : Going to the 4 resource and eating
         self.nb_actions = len(self.actions_controls) + 4
@@ -269,11 +273,11 @@ class Algorithm:
             # Therefore, we integrate the differential equation until this time
             new_zeta = self.agent.zeta
             for i in range(6):
-                new_zeta[i] = -self.agent.x_star[i] + (new_zeta[i] + self.agent.x_star[i]) * np.exp(
+                new_zeta[i] = -self.agent.x_star[i] + (new_zeta[i] + self.agent.x_star[i]) * torch.exp(
                     (self.agent.c[i] + self.actions_controls[4][i]) * self.min_time_sleep * self.time_step)
             return new_zeta
 
-        action_circle = {
+        action_circle = {  # TODO: remove
             10: "circle_1",
             11: "circle_2",
             12: "circle_3",
@@ -302,7 +306,7 @@ class Algorithm:
                 # state during this time
                 t = d * self.time_step / 0.1
                 for i in range(6):
-                    new_zeta[i] = -self.agent.x_star[i] + (new_zeta[i] + self.agent.x_star[i]) * np.exp(
+                    new_zeta[i] = -self.agent.x_star[i] + (new_zeta[i] + self.agent.x_star[i]) * torch.exp(
                         (self.agent.c[i] + self.actions_controls[0][0][i]) * t)
                 new_zeta[6] = self.env.coord_circ[circle][0]
                 new_zeta[7] = self.env.coord_circ[circle][1]
@@ -319,7 +323,7 @@ class Algorithm:
                 new_zeta = going_and_get_resource(circle)
 
         else:
-            u = np.zeros(self.agent.zeta.shape)
+            u = torch.zeros(self.agent.zeta.shape)
 
             # walk
             if a == 0:
@@ -369,14 +373,10 @@ class Algorithm:
         # f is a neural network taking one vector.
         # But this vector contains the information of zeta and u.
         # The u is the one-hot-encoded control associated with the action a
-        zeta_u = np.concatenate(
-            [self.agent.zeta, np.zeros(self.nb_actions)])
+        zeta_u = torch.cat(
+            [self.agent.zeta, torch.zeros(self.nb_actions)])
         index_control = len(self.agent.zeta) + action
         zeta_u[index_control] = 1
-
-        # f depends on zeta and u.
-        zeta_u_to_f = torch.from_numpy(zeta_u).float()
-        zeta_to_J = torch.from_numpy(self.agent.zeta).float()
 
         # Those lines are only used to accelerate the computations but are not
         # strickly necessary.
@@ -389,7 +389,7 @@ class Algorithm:
         # In the Hamilton Jacobi Bellman equation, we derivate J by zeta.
         # But we do not want to propagate this gradient.
         # We seek to compute the gradient of J with respect to zeta_to_J.
-        zeta_to_J.requires_grad = True
+        self.agent.zeta.requires_grad = True
         # zeta_u_to_f.require_grad = False : This is already the default.
 
         # Deactivate dropout and batchnorm but continues to accumulate the gradient.
@@ -402,17 +402,17 @@ class Algorithm:
         # even if the inputs have requires_grad=True
         # If you want to freeze part of your model and train the rest, you can set
         # requires_grad of the parameters you want to freeze to False.
-        f = self.net_f.forward(zeta_u_to_f).detach().numpy()
+        f = self.net_f.forward(zeta_u).detach()
         new_zeta_ = self.agent.zeta + self.time_step * f
         instant_reward = self.agent.drive(new_zeta_)
         grad_ = torch.autograd.grad(
-            self.net_J(zeta_to_J), zeta_to_J)[0]
-        future_reward = torch.dot(grad_, self.net_f.forward(zeta_u_to_f))
-        future_reward = future_reward.detach().numpy()
+            self.net_J(self.agent.zeta), self.agent.zeta)[0]
+        future_reward = torch.dot(grad_, self.net_f.forward(zeta_u))
+        future_reward = future_reward.detach()
 
         score = instant_reward + future_reward
 
-        zeta_to_J.requires_grad = False
+        self.agent.zeta.requires_grad = False
 
         for param in self.net_f.parameters():
             param.requires_grad = True
@@ -421,7 +421,7 @@ class Algorithm:
 
         self.net_J.train()
         self.net_f.train()
-        return score
+        return score.detach().numpy()
 
     def simulation_one_step(self, k):
         """Simulate one step.
@@ -458,25 +458,22 @@ class Algorithm:
                     best_score = score
                     action = act
 
-        zeta_to_nn = torch.from_numpy(self.agent.zeta).float()
-        zeta_u = np.concatenate(
-            [self.agent.zeta, np.zeros(self.nb_actions)])
+        zeta_u = torch.cat(
+            [self.agent.zeta, torch.zeros(self.nb_actions)])
         zeta_u[len(self.agent.zeta) + action] = 1
-        zeta_u_to_nn = torch.from_numpy(zeta_u).float()
 
         new_zeta = self.new_state(action)  # actual choosen new_zeta
-        new_zeta_to_nn = torch.from_numpy(new_zeta).float()
 
         coeff = self.asym_coeff
         # set of big actions leading directly to the resources and 4 is for sleeping
         if action in {4, 10, 11, 12, 13}:
             coeff = 1
 
-        predicted_new_zeta = zeta_to_nn + self.time_step * \
-            self.net_f.forward(zeta_u_to_nn)
+        predicted_new_zeta = self.agent.zeta + self.time_step * \
+            self.net_f.forward(zeta_u)
 
-        Loss_f = coeff * torch.dot(new_zeta_to_nn - predicted_new_zeta,
-                                   new_zeta_to_nn - predicted_new_zeta)
+        Loss_f = coeff * torch.dot(new_zeta - predicted_new_zeta,
+                                   new_zeta - predicted_new_zeta)
 
         self.optimizer_J.zero_grad()
         self.optimizer_f.zero_grad()
@@ -484,7 +481,7 @@ class Algorithm:
         self.optimizer_J.zero_grad()
         self.optimizer_f.step()
 
-        zeta_to_nn.requires_grad = True
+        self.agent.zeta.requires_grad = True
 
         # if drive = d(\zeta_t)= 1 and globally convex environment (instant
         # and long-term improvements are in the same direction)
@@ -493,17 +490,17 @@ class Algorithm:
         instant_drive = self.agent.drive(new_zeta)
 
         # negative
-        delta_deviation = torch.dot(torch.autograd.grad(self.net_J(zeta_to_nn),
-                                                        zeta_to_nn)[0],
-                                    self.net_f.forward(zeta_u_to_nn))
+        delta_deviation = torch.dot(torch.autograd.grad(self.net_J(self.agent.zeta),
+                                                        self.agent.zeta)[0],
+                                    self.net_f.forward(zeta_u))
 
         # 0.1 current deviation
-        discounted_deviation = - np.log(self.gamma) * \
-            self.net_J.forward(zeta_to_nn)
+        discounted_deviation = - torch.log(torch.tensor(self.gamma)) * \
+            self.net_J.forward(self.agent.zeta)
         Loss_J = torch.square(
             instant_drive + delta_deviation - discounted_deviation)
 
-        zeta_to_nn.requires_grad = False
+        self.agent.zeta.requires_grad = False
 
         self.optimizer_J.zero_grad()
         self.optimizer_f.zero_grad()
@@ -571,16 +568,14 @@ class Algorithm:
         values.fill(np.nan)
         for i in range(n_X):  # x
             for j in range(n_Y):  # y
-                if is_inside[i, j]:
+                if is_inside[i, j]:  # TODO : use torch batch
                     # We are at the optimum for three out of the 4 resources
                     # but one resources varies alongside with the coordinates.
                     # No muscular nor energic fatigues.
-                    zeta = np.array(
-                        [0, 0, 0, -self.agent.x_star[3], 0, 0, i/scale, j/scale, 0])
-                    zeta = np.array([0, 0, 0, 0, 0, 0, i/scale, j/scale, 0])
+                    zeta = torch.Tensor(
+                        [0, 0, 0, 0, 0, 0, i/scale, j/scale, 0])
                     zeta[resource-1] = -self.agent.x_star[resource-1]
-                    zeta_to_J = torch.from_numpy(zeta).float()
-                    values[i, j] = self.net_J(zeta_to_J).detach().numpy()
+                    values[i, j] = self.net_J(zeta).detach().numpy()
 
         im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
         ax.axis('off')
@@ -655,7 +650,7 @@ class Algorithm:
         Parameters:
         -----------
         ax: SubplotBase
-        zeta: np.ndarray
+        zeta: torch.tensor
         controls_turn: ?
 
         Returns:
@@ -737,7 +732,7 @@ class Algorithm:
             action, loss = self.simulation_one_step(k)
 
             # save historic
-            self.historic_zeta.append(self.agent.zeta)
+            self.historic_zeta.append(self.agent.zeta.detach().numpy())
             self.historic_actions.append(action)
             self.historic_losses.append(loss)
 

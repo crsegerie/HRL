@@ -1,5 +1,5 @@
-
-import numpy as np
+import torch
+from math import pi
 
 
 class Agent:
@@ -11,9 +11,9 @@ class Agent:
 
         PROPRIETIES
         ---------
-        x_star: np.array
+        x_star: torch.tensor
             homeostatic set point.
-        c: np.array
+        c: torch.tensor
             homogeneus to the inverse of a second. For example c = (-0.1, ...)
             says that the half-life (like a radioactive element) of the first
             ressource is equal to 10 seconds.
@@ -24,19 +24,19 @@ class Agent:
 
         # homeostatic point
         # Resources 1, 2, 3, 4 and muscular fatigues and sleep fatigue
-        self.x_star = np.array([1, 2, 3, 4, 0, 0])
+        self.x_star = torch.Tensor([1, 2, 3, 4, 0, 0])
 
         # parameters of the function f
         # same + x, y, and angle coordinates
-        self.c = np.array(
+        self.c = torch.Tensor(
             [-0.05, -0.05, -0.05, -0.05, -0.008, 0.0005, 0, 0, 0])
 
         # Not used currently
-        self.angle_visual_field = np.pi / 10
+        self.angle_visual_field = pi / 10
 
         # UTILS ##################################################
 
-        self.zeta = np.zeros(9)
+        self.zeta = torch.zeros(9)
         self.zeta[6] = 3  # initialization position for the agent
         self.zeta[7] = 2  # initialization position for the agent
 
@@ -48,12 +48,12 @@ class Agent:
 
         Variables
         ---------
-        zeta: np.array
+        zeta: torch.tensor
             whole world state.
-        u: np.array
+        u: torch.tensor
             control. (freewill of the agent)
         """
-        f = np.zeros(zeta.shape)
+        f = torch.zeros(zeta.shape)
         # Those first coordinate are homeostatic, and with a null control, zeta tends to zero.
         # coordinate 0 : resource 1
         # coordinate 1 : resource 2
@@ -78,13 +78,13 @@ class Agent:
 
         Variables
         ---------
-        zeta: np.array
+        zeta: torch.tensor
             whole world state.
-        u: np.array
+        u: torch.tensor
             control. (freewill of the agent)
         """
         # in the delta, we only count the internal state.
         # The tree last coordinate do not count in the homeostatic set point.
         delta = zeta[:6]
-        drive_delta = np.sqrt(epsilon + np.dot(delta, delta))
+        drive_delta = torch.sqrt(epsilon + torch.dot(delta, delta))
         return drive_delta
