@@ -4,21 +4,32 @@ from math import pi
 
 class Agent:
     def __init__(self):
-        """
-        Initialize the Agent
+        """Initialize the Agent.
 
         ...
 
-        PROPRIETIES
+        PROPERTIES
         ---------
-        x_star: torch.tensor
+        x_star : torch.tensor
             homeostatic set point.
-        c: torch.tensor
+        c : torch.tensor
             homogeneus to the inverse of a second. For example c = (-0.1, ...)
             says that the half-life (like a radioactive element) of the first
             ressource is equal to 10 seconds.
-        angle_visual_field: float
+        angle_visual_field : float
             in radiant. Not implemented.
+        zeta : torch.tensor
+            zeta[0] : resource 1
+            zeta[1] : resource 2
+            zeta[2] : resource 3
+            zeta[3] : resource 4
+            zeta[4] : muscular energy (muscular resource)
+            zeta[5] : aware energy (aware resource) : low if sleepy.
+            zeta[6] : x-coordinate
+            zeta[7] : y-coordinate
+            zeta[8] : angle
+            Be aware that zeta[:6] is homeostatic and that zeta[6:] aren't.
+
         """
         # METAPARAMETERS ##########################################
 
@@ -37,14 +48,12 @@ class Agent:
         # UTILS ##################################################
 
         self.zeta = torch.zeros(9)
-        self.zeta[6] = 3  # initialization position for the agent
-        self.zeta[7] = 2  # initialization position for the agent
+        self.zeta[6] = 3  # initialization x position for the agent
+        self.zeta[7] = 2  # initialization y position for the agent
 
     def dynamics(self, zeta, u):
         """
         Return the Agent's dynamics which is represented by the f function.
-
-        ...
 
         Variables
         ---------
@@ -54,13 +63,9 @@ class Agent:
             control. (freewill of the agent)
         """
         f = torch.zeros(zeta.shape)
-        # Those first coordinate are homeostatic, and with a null control, zeta tends to zero.
-        # coordinate 0 : resource 1
-        # coordinate 1 : resource 2
-        # coordinate 2 : resource 3
-        # coordinate 3 : resource 4
-        # coordinate 4 : muscular energy (muscular resource)
-        # coordinate 6 : aware energy (aware resource) : low if sleepy.
+        # Those first coordinate are homeostatic, and with a null control,
+        # zeta tends to zero.
+
         f[:6] = self.c[:6] * (zeta[:6] + self.x_star) + \
             u[:6] * (zeta[:6] + self.x_star)
 

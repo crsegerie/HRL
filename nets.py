@@ -5,7 +5,8 @@ from torch import sigmoid
 
 class Net_J(nn.Module):
     """ Net_J is the tentative of the agent to learn the world.
-    It is an approximation of the real J, which is the expected drive (-expected reward).
+    It is an approximation of the real J, which is the expected 
+    drive (-expected reward).
     The agents wants to minimize this drive.
     """
 
@@ -52,7 +53,8 @@ class Net_f(nn.Module):
         # 9 is the size of zeta and 14 is the size of size of
         # the one-hot encoded action (the number of actions)
 
-        # TODO: zeta is continuous and the one-hot-encoded control is kind of discrete.
+        # TODO: zeta is continuous and the one-hot-encoded control
+        # is kind of discrete.
         # We could preprocess zeta before concatenating with the control.
         self.fc1 = nn.Linear(9 + 14, n_neurons)
         self.dropout1 = nn.Dropout(dropout_rate)
