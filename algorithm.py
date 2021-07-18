@@ -371,7 +371,6 @@ class Algorithm:
         --------
         The new states.
         """
-
         # 4 is sleeping
         if a == 4:
             # The new state is when the agent wakes up
