@@ -30,7 +30,8 @@ class Algorithm:
         # plotting
         self.cycle_plot = self.N_iter - 1
         self.N_rolling = 5
-        self.N_save_weights = 1000  # save neural networks weights every N_save_weights step
+        # save neural networks weights every N_save_weights step
+        self.N_save_weights = 1000
         self.N_print = 1
 
         # ACTIONS METAPARAMETERS ##################################
@@ -43,14 +44,16 @@ class Algorithm:
                               for i in range(num_pos_angles)]
         self.controls_turn = torch.Tensor(self.controls_turn)
 
+        self.walking_speed = 0.1
         control_walking = [[0, 0, 0, 0, 0.01, 0,  # homeostatic resources
-                            0.1 * self.controls_turn[i][0],  # x
-                            0.1 * self.controls_turn[i][1],  # y
+                            self.walking_speed * self.controls_turn[i][0],  # x
+                            self.walking_speed * self.controls_turn[i][1],  # y
                             0]  # angle
                            for i in range(num_pos_angles)]
+        self.running_speed = 0.3
         control_running = [[0, 0, 0, 0, 0.05, 0,
-                            0.3 * self.controls_turn[i][0],
-                            0.3 * self.controls_turn[i][1],
+                            self.running_speed * self.controls_turn[i][0],
+                            self.running_speed * self.controls_turn[i][1],
                             0]
                            for i in range(num_pos_angles)]
 
@@ -90,7 +93,8 @@ class Algorithm:
         # there are 4 additionnal actions : Going to the 4 resource and eating
         self.nb_actions = len(self.actions_controls) + 4
 
-        # a vector representing the physical limits. Example: you cannot eat more than 6 kg of food...
+        # a vector representing the physical limits. Example: you cannot eat
+        # more than 6 kg of food...
         # Same order of action as actions_controls
         # Constraint verify the tiredness. There are tree types of tiredness:
         # - muscular tiredness (M)
@@ -101,9 +105,10 @@ class Algorithm:
         self.constraints = [6, 3, 6, 6, 1, 8, 8, 8, 8, None]
         # (*) There is not any constraint when you do anything.
 
-        # An agent cannot do micro sleep. He cannot wake during a minimum amount of time.
+        # An agent cannot do micro sleep.
+        # He cannot wake during a minimum amount of time.
         # ratio of the minimum sleep time for the agent and the time_step
-        self.min_time_sleep = 1000
+        self.n_min_time_sleep = 1000
         # If the agent is too tired, he automatically sleeps.
         self.max_tired = 10
 
@@ -124,9 +129,10 @@ class Algorithm:
             13: "going direcly to resource 4",
         }
 
-        # If one of the agent resource is lower than min_resource, we put it back at min_resource
-        # This help because if one of the agent resource equals 0, because of the dynamics
-        #  of the exponintial,
+        # If one of the agent resource is lower than min_resource,
+        # we put it back at min_resource
+        # This help because if one of the agent resource equals 0,
+        # because of the dynamics of the exponintial,
         # the agent cannot reconstitute this resource.
         self.min_resource = 0.1
 
@@ -165,7 +171,8 @@ class Algorithm:
         + 4 for the action of going to a resource after seeing it
         """
         # There are 4 more possible actions:
-        # The 4 last actions correspond to going direcly to each of the 4 ressources if possible.
+        # The 4 last actions correspond to going direcly to each of the
+        # 4 ressources if possible.
         possible_actions = [True for i in range(
             len(self.actions_controls) + 4)]
 
@@ -244,6 +251,92 @@ class Algorithm:
 
         return possible_actions
 
+    def euler_method(self, u):
+        """Euler method for tiny time steps.
+
+        Parameters
+        ----------
+        u: torch.tensor
+            control. (freewill of the agent)
+
+        Returns:
+        --------
+        The updated zeta.
+        """
+        delta_zeta = self.time_step * \
+            self.agent.dynamics(self.agent.zeta, u)
+        return self.agent.zeta + delta_zeta
+
+    def integrate_multiple_steps(self, duration: float, control: torch.Tensor):
+        """We integrate rigorously with an exponential over 
+        long time period the differential equation.
+
+        This function is usefull in the case of big actions, 
+        such as going direclty to one of the circles.
+
+        PARAMETER:
+        ----------
+        duration :
+            duration of time to integrate over.
+        control:
+            index of the action.
+
+        RETURNS:
+        -------
+        new_zeta. The updated zeta."""
+        assert len(control) == 6
+        assert len(self.agent.zeta[:6]) == 6
+
+        x = self.agent.zeta[:6] + self.agent.x_star
+        rate = self.agent.coef_herzt + control
+        new_x = x * torch.exp(rate * duration)
+        new_zeta = self.agent.zeta.clone()
+        new_zeta[:6] = new_x - self.agent.x_star
+        return new_zeta
+
+    def going_and_get_resource(self, circle):
+        """Return the new state associated with the special action a going 
+        direclty to the circle.
+
+        Parameter:
+        ----------
+        circle : example : "circle_1
+
+        Returns:
+        --------
+        The new state (zeta), but with the agent who has wlaken to go to 
+        the state and so which is therefore more tired.
+        """
+        new_zeta = self.agent.zeta
+
+        agent_x = self.agent.zeta[6]
+        agent_y = self.agent.zeta[7]
+        circle_x = self.env.coord_circ[circle][0]
+        circle_y = self.env.coord_circ[circle][1]
+        distance = np.sqrt((agent_x - circle_x)**2 +
+                           (agent_y - circle_y)**2)
+
+        if distance != 0:
+            # If the agent is at a distance d from the resource,
+            # it will first need to walk
+            # to consume it. Thus, we integrate the differential
+            # equation of its internal state during this time
+            time_to_walk = distance * self.time_step / self.walking_speed
+
+            angle = int(self.agent.zeta[8])
+            control = self.actions_controls[0][angle][:6]
+            new_zeta = self.integrate_multiple_steps(time_to_walk, control)
+            new_zeta[6] = self.env.coord_circ[circle][0]
+            new_zeta[7] = self.env.coord_circ[circle][1]
+            return new_zeta
+        else:
+            # If the agent is already on the resource, then consuming it is done instantly
+            u = self.actions_controls[9]
+
+            self.agent.zeta = self.euler_method(u)
+
+            return new_zeta
+
     def new_state(self, a):
         """Return the new state after an action is taken.
 
@@ -263,83 +356,57 @@ class Algorithm:
             9# not doing anything
         ]
 
-
-        Returns:
-        --------
-        The new states.
-        """
-        if a == 4:
-            # The new state is when the agent wakes up
-            # Therefore, we integrate the differential equation until this time
-            new_zeta = self.agent.zeta
-            for i in range(6):
-                new_zeta[i] = -self.agent.x_star[i] + (new_zeta[i] + self.agent.x_star[i]) * torch.exp(
-                    (self.agent.c[i] + self.actions_controls[4][i]) * self.min_time_sleep * self.time_step)
-            return new_zeta
-
-        action_circle = {  # TODO: remove
+        And we have also complementatry actions:
+        action_circle = {
             10: "circle_1",
             11: "circle_2",
             12: "circle_3",
             13: "circle_4",
         }
 
-        def going_and_get_resource(circle):
-            """Return the new state associated with the special action a going 
-            direclty to the circle.
 
-            Parameter:
-            ----------
-            circle : example : "circle_1
+        Returns:
+        --------
+        The new states.
+        """
 
-            Returns:
-            --------
-            The new state (zeta), but with the agent who has wlaken to go to 
-            the state and so which is therefore more tired.
-            """
-            new_zeta = self.agent.zeta
-            d = np.sqrt((self.agent.zeta[6] - self.env.coord_circ[circle][0])**2 + (
-                self.agent.zeta[7] - self.env.coord_circ[circle][1])**2)
-            if d != 0:
-                # If the agent is at a distance d from the resource, it will first need to walk
-                # to consume it. Thus, we integrate the differential equation of its internal
-                # state during this time
-                t = d * self.time_step / 0.1
-                for i in range(6):
-                    new_zeta[i] = -self.agent.x_star[i] + (new_zeta[i] + self.agent.x_star[i]) * torch.exp(
-                        (self.agent.c[i] + self.actions_controls[0][0][i]) * t)
-                new_zeta[6] = self.env.coord_circ[circle][0]
-                new_zeta[7] = self.env.coord_circ[circle][1]
-                return new_zeta
-            else:
-                # If the agent is already on the resource, then consuming it is done instantly
-                u = self.actions_controls[9]
-                new_zeta = self.agent.zeta + self.time_step * \
-                    self.agent.dynamics(self.agent.zeta, u)
-                return new_zeta
+        # 4 is sleeping
+        if a == 4:
+            # The new state is when the agent wakes up
+            # Therefore, we integrate the differential equation until this time
+            duration_sleep = self.n_min_time_sleep * self.time_step
+            control_sleep = self.actions_controls[4][:6]
+            new_zeta = self.integrate_multiple_steps(
+                duration_sleep, control_sleep)
 
-        for a_, circle in action_circle.items():
-            if a == a_:
-                new_zeta = going_and_get_resource(circle)
+        # going and getting the resource
+        elif a in [10, 11, 12, 13]:
+            action_circle = {  # TODO: put next to init
+                10: "circle_1",
+                11: "circle_2",
+                12: "circle_3",
+                13: "circle_4",
+            }
+            for a_, circle in action_circle.items():
+                if a == a_:
+                    new_zeta = self.going_and_get_resource(circle)
 
+        # Other elementary actions
         else:
             u = torch.zeros(self.agent.zeta.shape)
 
-            # walk
-            if a == 0:
-                u = self.actions_controls[0][int(self.agent.zeta[8])]
+            map_action_control = {
+                i: self.actions_controls[i] for i in range(2, 10)}
 
-            # run
-            elif a == 1:
-                u = self.actions_controls[1][int(self.agent.zeta[8])]
+            map_action_control[0] = self.actions_controls[0][int(
+                self.agent.zeta[8])]  # walk
+            map_action_control[1] = self.actions_controls[1][int(
+                self.agent.zeta[8])]  # run
 
-            # if other, we just select the control associated with this action.
-            elif (a == 2) or (a == 3) or (a == 5) or (a == 6) or (a == 7) or (a == 8) or (a == 9):
-                u = self.actions_controls[a]
+            u = map_action_control[a]
 
             # Euler method to calculate the new zeta.
-            new_zeta = self.agent.zeta + self.time_step * \
-                self.agent.dynamics(self.agent.zeta, u)
+            new_zeta = self.euler_method(u)
 
             # If the agent is turning its angle
             # Not in euler because discretized.
@@ -352,14 +419,17 @@ class Algorithm:
             elif new_zeta[8] == -1:
                 new_zeta[8] = len(self.actions_controls[0]) - 1
 
-            return new_zeta
+        return new_zeta
 
     def evaluate_action(self, action):
         """Return the score associated with the action.
 
-        In this function, we do not seek to update the Net_F and Net_J, so we use the eval mode.
-        But we still seek to use the derivative of the Net_F according to zeta. So we use require_grad = True.
-        Generally, inly the parameters of a neural network are on require_grad = True.
+        In this function, we do not seek to update the Net_F and Net_J,
+         so we use the eval mode.
+        But we still seek to use the derivative of the Net_F according to zeta.
+         So we use require_grad = True.
+        Generally, inly the parameters of a neural network are on 
+        require_grad = True.
         But here we must use zeta.require_grad = True.
 
         Parameters:
@@ -642,7 +712,8 @@ class Algorithm:
         ax.set_ylabel('value of the losses')
         ax.set_xlabel('frames')
         ax.set_title(
-            f"Evolution of the log-loss (moving average with {self.N_rolling} frames)")
+            f"Evolution of the log-loss (moving average with "
+            f"{self.N_rolling} frames)")
 
     def plot_position(self, ax, zeta, controls_turn):
         """Plot the position with an arrow.
@@ -674,7 +745,8 @@ class Algorithm:
     def plot(self, frame,  scale=5):
         """Plot the position, angle and the ressources of the agent.
 
-        - time, ressources, historic in transparence -> faire une fonction plot en dehors de l'agent
+        - time, ressources, historic in transparence 
+        -> faire une fonction plot en dehors de l'agent
 
 
         Parameters:

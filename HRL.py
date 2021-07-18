@@ -4,14 +4,13 @@ Described in the paper:
 Continuous Homeostatic Reinforcement Learning
 for Self-Regulated Autonomous Agents.
 """
-
-
-from utils import set_all_seeds
-
-from nets import Net_J, Net_f
-from algorithm import Algorithm
-from environment import Environment
 from agent import Agent
+from environment import Environment
+from algorithm import Algorithm
+from nets import Net_J, Net_f
+from utils import set_all_seeds
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
 # Random seed
