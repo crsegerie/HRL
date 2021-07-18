@@ -5,12 +5,13 @@ from matplotlib.colors import Normalize
 import pandas as pd
 
 
-from agent import Agent
+from agent import Agent, Control, Zeta, Homeostatic, Control
+from environment import Environment
 from nets import Net_J, Net_f
 
 
 class Algorithm:
-    def __init__(self, env, agent: Agent, net_J: Net_J, net_f: Net_f):
+    def __init__(self, env: Environment, agent: Agent, net_J: Net_J, net_f: Net_f):
 
         # ALGOS METAPARAMETERS ##################################
 
@@ -220,14 +221,15 @@ class Algorithm:
                 len(self.actions_controls) + 4)]
             possible_actions[4] = True
 
-        def is_near_ressource(circle):
-            """circle= (str) 'circle_1'"""
+        def is_near_ressource(circle: str):
+            """circle:  (str) 
+                example 'circle_1'"""
             dist = (self.agent.zeta[6] - self.env.coord_circ[circle][0])**2 + (
                 self.agent.zeta[7] - self.env.coord_circ[circle][1])**2
             radius = self.env.coord_circ[circle][2]**2
             return dist < radius
 
-        def check_resource(i):
+        def check_resource(i: int):
             index_circle = 4+i
             if self.agent.zeta[0+i - 1] >= self.constraints[index_circle]:
                 possible_actions[index_circle] = False
@@ -237,7 +239,7 @@ class Algorithm:
         for resource in range(1, 5):
             check_resource(resource)
 
-        def is_resource_visible(resource):
+        def is_resource_visible(resource: int):
             """Check if segment between agent and resource i is visible"""
             xa = self.agent.zeta[6]
             xb = self.env.coord_circ[f'circle_{str(resource)}'][0]
@@ -251,7 +253,7 @@ class Algorithm:
 
         return possible_actions
 
-    def euler_method(self, u):
+    def euler_method(self, u: Control):
         """Euler method for tiny time steps.
 
         Parameters
@@ -267,7 +269,7 @@ class Algorithm:
             self.agent.dynamics(self.agent.zeta, u)
         return self.agent.zeta + delta_zeta
 
-    def integrate_multiple_steps(self, duration: float, control: torch.Tensor):
+    def integrate_multiple_steps(self, duration: float, control: Control):
         """We integrate rigorously with an exponential over 
         long time period the differential equation.
 
@@ -294,7 +296,7 @@ class Algorithm:
         new_zeta[:6] = new_x - self.agent.x_star
         return new_zeta
 
-    def going_and_get_resource(self, circle):
+    def going_and_get_resource(self, circle: str):
         """Return the new state associated with the special action a going 
         direclty to the circle.
 
@@ -337,7 +339,7 @@ class Algorithm:
 
             return new_zeta
 
-    def new_state(self, a):
+    def new_state(self, a: int):
         """Return the new state after an action is taken.
 
         Parameter:
@@ -421,7 +423,7 @@ class Algorithm:
 
         return new_zeta
 
-    def evaluate_action(self, action):
+    def evaluate_action(self, action: int):
         """Return the score associated with the action.
 
         In this function, we do not seek to update the Net_F and Net_J,
@@ -493,7 +495,7 @@ class Algorithm:
         self.net_f.train()
         return score.detach().numpy()
 
-    def simulation_one_step(self, k):
+    def simulation_one_step(self, k: int):
         """Simulate one step.
 
         Paramaters:
@@ -593,7 +595,7 @@ class Algorithm:
         loss = np.array([Loss_f.detach().numpy(), Loss_J.detach().numpy()[0]])
         return action, loss
 
-    def compute_mask(self, scale):
+    def compute_mask(self, scale: int):
         """Compute the mask.
 
         Parameters:
@@ -614,7 +616,7 @@ class Algorithm:
                 is_inside[i, j] = self.env.is_point_inside(i/scale, j/scale)
         return is_inside
 
-    def plot_J(self, ax, fig, resource, scale, is_inside):
+    def plot_J(self, ax, fig, resource: int, scale: int, is_inside):
         """Plot of the learned J function.
 
         Parameters:
@@ -623,6 +625,7 @@ class Algorithm:
         resource: int
             1, 2, 3, or 4.
         scale: int
+            scale squared gives the number of plotted points for a unt square.
         is_inside : np.ndarray
 
         Returns:
@@ -653,7 +656,7 @@ class Algorithm:
         ax.set_title(f'Deviation function (resource {resource} missing)')
         cbar = fig.colorbar(im, extend='both', shrink=0.4, ax=ax)
 
-    def plot_ressources(self, ax, frame):
+    def plot_ressources(self, ax, frame: int):
         """Plot the historic of the ressrouce with time in abscisse.
 
         Parameters:
@@ -686,7 +689,7 @@ class Algorithm:
         ax.set_xlabel('frames')
         ax.set_title("Evolution of the resource")
 
-    def plot_loss(self, ax, frame):
+    def plot_loss(self, ax, frame: int):
         """Plot the loss in order to control the learning of the agent.
 
         Parameters:
@@ -715,14 +718,13 @@ class Algorithm:
             f"Evolution of the log-loss (moving average with "
             f"{self.N_rolling} frames)")
 
-    def plot_position(self, ax, zeta, controls_turn):
+    def plot_position(self, ax, zeta: Zeta):
         """Plot the position with an arrow.
 
         Parameters:
         -----------
         ax: SubplotBase
         zeta: torch.tensor
-        controls_turn: ?
 
         Returns:
         --------
@@ -735,14 +737,14 @@ class Algorithm:
 
         num_angle = int(zeta[8])
 
-        dx, dy = controls_turn[num_angle]
+        dx, dy = self.controls_turn[num_angle]
 
         alpha = 0.5
 
         ax.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
         ax.set_title("Position and orientation of the agent")
 
-    def plot(self, frame,  scale=5):
+    def plot(self, frame: int,  scale=5):
         """Plot the position, angle and the ressources of the agent.
 
         - time, ressources, historic in transparence 
@@ -780,8 +782,7 @@ class Algorithm:
                 f'{last_action}: {self.meaning_actions[last_action]} '),
             fontsize=16)
 
-        self.plot_position(ax=ax_env, zeta=zeta,
-                           controls_turn=self.controls_turn)
+        self.plot_position(ax=ax_env, zeta=zeta)
 
         self.plot_ressources(ax=ax_resource, frame=frame)
         self.plot_loss(ax=ax_loss, frame=frame)

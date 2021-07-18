@@ -33,7 +33,7 @@ class Environment:
             'circle_3': [8, 5.5, 0.3, 'orange'],
             'circle_4': [6.5, 0.75, 0.3, 'green']}
 
-    def is_point_inside(self, x, y):
+    def is_point_inside(self, x: float, y: float):
         """Check if a point (x,y) is inside the polygon.
         To do this, we look at the number of sides of the polygon at the left
         of the point.
@@ -63,7 +63,7 @@ class Environment:
         else:
             return False
 
-    def is_segment_inside(self, xa, xb, ya, yb):
+    def is_segment_inside(self, xa: float, xb: float, ya: float, yb: float):
         """Check if the segment AB with A(xa, ya) and B(xb, yb) is completely
         inside the polygon.
         To do this, we look at the number of intersections between the segment
@@ -136,7 +136,7 @@ class Environment:
         else:
             return True
 
-    def plot(self, ax=None, save_fig=False):
+    def plot(self, ax=None, save_fig: bool = False):
         """Plot the environment, but not the Agent.
 
         Parameters

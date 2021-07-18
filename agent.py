@@ -1,5 +1,10 @@
+from numpy.core.fromnumeric import shape
 import torch
 from math import pi
+
+Zeta = torch.Tensor(shape(9))
+Control = torch.Tensor(shape(9))
+Homeostatic = torch.Tensor(shape(6))
 
 
 class Agent:
@@ -35,11 +40,11 @@ class Agent:
 
         # homeostatic point
         # Resources 1, 2, 3, 4 and muscular fatigues and sleep fatigue
-        self.x_star = torch.Tensor([1, 2, 3, 4, 0, 0])
+        self.x_star: Homeostatic = torch.Tensor([1, 2, 3, 4, 0, 0])
 
         # parameters of the function f
         # same + x, y, and angle coordinates
-        self.coef_herzt = torch.Tensor(
+        self.coef_herzt: Homeostatic = torch.Tensor(
             [-0.05, -0.05, -0.05, -0.05, -0.008, 0.0005])
 
         # Not used currently
@@ -47,11 +52,11 @@ class Agent:
 
         # UTILS ##################################################
 
-        self.zeta = torch.zeros(9)
+        self.zeta: Zeta = torch.zeros(9)
         self.zeta[6] = 3  # initialization x position for the agent
         self.zeta[7] = 2  # initialization y position for the agent
 
-    def dynamics(self, zeta, u):
+    def dynamics(self, zeta: Zeta, u: Control):
         """
         Return the Agent's dynamics which is represented by the f function.
 
@@ -75,7 +80,7 @@ class Agent:
         f[6:9] = u[6:9]
         return f
 
-    def drive(self, zeta, epsilon=0.001):
+    def drive(self, zeta: Zeta, epsilon: float = 0.001):
         """
         Return the Agent's drive which is the distance between the agent's 
         state and the homeostatic set point.
