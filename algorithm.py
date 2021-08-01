@@ -641,6 +641,9 @@ class Algorithm:
         n_Y = 6*scale
         values = np.empty((n_X, n_Y))
         values.fill(np.nan)
+        # We could optimize this plot by using a batch with each element of 
+        # the batch representing one pixel in the image.
+        # But this function represents only 1/8 of the total execution time.
         for i in range(n_X):  # x
             for j in range(n_Y):  # y
                 if is_inside[i, j]:  # TODO : use torch batch
