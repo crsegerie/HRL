@@ -74,15 +74,17 @@ class Environment:
 
         coords = self.coord_env
         lab = list(coords.keys()) + list(coords.keys())[:2]
-        n_inter = 0
 
      
         def is_inter(inter: List[float], ind: int):
-            """Check if the intersection is inside AB."""
+            """Check if the intersection between the segement [A, B] 
+            and the border number i is both inside [A, B] and the border."""
             inter_in_AB = (inter[0] >= min(xa, xb)) and \
                           (inter[0] <= max(xa, xb)) and \
                           (inter[1] >= min(ya, yb)) and \
                           (inter[1] <= max(ya, yb))
+            if not inter_in_AB:
+                return False
             inter_in_border = (inter[0] >= min(coords[lab[ind]],
                                                coords[lab[ind + 2]])) and \
                 (inter[0] <= max(coords[lab[ind]],
@@ -92,9 +94,9 @@ class Environment:
                 (inter[1] <= max(coords[lab[ind + 1]],
                                  coords[lab[ind + 3]]))
 
-            if inter_in_AB and inter_in_border:
-                return True
-            return False
+            if not inter_in_border:
+                return False
+            return True
 
         if (xa != xb):
             alpha_1 = (yb - ya) / (xb - xa)
@@ -103,7 +105,7 @@ class Environment:
                 if coords[lab[i]] == coords[lab[i + 2]]:
                     inter = [coords[lab[i]], alpha_1 * coords[lab[i]] + beta_1]
                     if is_inter(inter, i):
-                        n_inter += 1
+                        return False
                 else:
                     if ya == yb:
                         if ya == coords[lab[i + 1]]:
@@ -114,13 +116,14 @@ class Environment:
                                                min(coords[lab[i]],
                                                    coords[lab[i + 2]]))
                             if inter_in_border:
-                                n_inter += 1
+                                return False
                     else:
                         inter = [(coords[lab[i + 1]] - beta_1) / alpha_1,
                                  coords[lab[i + 1]]]
                         if is_inter(inter, i):
-                            n_inter += 1
+                            return False
         else:
+            # xa = xb : usefull when the agent is place on a resource for example.
             for i in range(0, len(lab) - 2, 2):
                 if coords[lab[i]] == coords[lab[i + 2]]:
                     if xa == coords[lab[i]]:
@@ -131,15 +134,12 @@ class Environment:
                                            min(coords[lab[i + 1]],
                                                coords[lab[i + 3]]))
                         if inter_in_border:
-                            n_inter += 1
+                            return False
                 else:
                     inter = [xa, coords[lab[i + 1]]]
                     if is_inter(inter, i):
-                        n_inter += 1
-        if n_inter > 0:
-            return False
-        else:
-            return True
+                        return False
+        return True
 
     def plot(self, ax=None, save_fig: bool = False):
         """Plot the environment, but not the Agent.
