@@ -153,7 +153,6 @@ class Algorithm:
         self.historic_actions = []
         self.historic_losses = []  # will contain a list of 2d [L_f, L_J]
 
-    
     def actions_possible(self):
         """
         Return a list of bool showing which action is permitted or not.
@@ -188,6 +187,7 @@ class Algorithm:
             self.actions_controls[0][int(self.agent.zeta[8])][6]
         y_walk = self.agent.zeta[7] + self.time_step * \
             self.actions_controls[0][int(self.agent.zeta[8])][7]
+        x_walk, y_walk = float(x_walk), float(y_walk)
         if not self.env.is_point_inside(x_walk, y_walk):
             possible_actions[0] = False
 
@@ -201,6 +201,7 @@ class Algorithm:
         y_run = self.agent.zeta[7] + self.time_step * \
             self.actions_controls[1][int(self.agent.zeta[8])][7]
 
+        x_run, y_run = float(x_run), float(y_run)
         if not self.env.is_point_inside(x_run, y_run):
             possible_actions[1] = False
 
@@ -242,9 +243,9 @@ class Algorithm:
 
         def is_resource_visible(resource: int):
             """Check if segment between agent and resource i is visible"""
-            xa = self.agent.zeta[6]
+            xa = float(self.agent.zeta[6])
             xb = self.env.coord_circ[f'circle_{str(resource)}'][0]
-            ya = self.agent.zeta[7]
+            ya = float(self.agent.zeta[7])
             yb = self.env.coord_circ[f'circle_{str(resource)}'][1]
             return self.env.is_segment_inside(xa, xb, ya, yb)
 
@@ -423,7 +424,6 @@ class Algorithm:
 
         return new_zeta
 
-    
     def evaluate_action(self, action: int):
         """Return the score associated with the action.
 
@@ -496,7 +496,6 @@ class Algorithm:
         self.net_f.train()
         return score.detach().numpy()
 
-    
     def simulation_one_step(self, k: int):
         """Simulate one step.
 
@@ -641,7 +640,7 @@ class Algorithm:
         n_Y = 6*scale
         values = np.empty((n_X, n_Y))
         values.fill(np.nan)
-        # We could optimize this plot by using a batch with each element of 
+        # We could optimize this plot by using a batch with each element of
         # the batch representing one pixel in the image.
         # But this function represents only 1/8 of the total execution time.
         for i in range(n_X):  # x
@@ -658,6 +657,9 @@ class Algorithm:
         im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
         ax.axis('off')
         ax.invert_yaxis()
+
+        self.env.plot_circles(ax, scale, circles=[resource-1])
+
         ax.set_title(f'Deviation function (resource {resource} missing)')
         cbar = fig.colorbar(im, extend='both', shrink=0.4, ax=ax)
 
@@ -749,7 +751,6 @@ class Algorithm:
         ax.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
         ax.set_title("Position and orientation of the agent")
 
-    
     def plot(self, frame: int,  scale=5):
         """Plot the position, angle and the ressources of the agent.
 
@@ -804,7 +805,6 @@ class Algorithm:
         print(name_fig)
         plt.close(fig)
 
-    
     def simulation(self):
 
         for k in range(self.N_iter):

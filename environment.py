@@ -64,7 +64,6 @@ class Environment:
         else:
             return False
 
-    
     def is_segment_inside(self, xa: float, xb: float, ya: float, yb: float):
         """Check if the segment AB with A(xa, ya) and B(xb, yb) is completely
         inside the polygon.
@@ -75,7 +74,6 @@ class Environment:
         coords = self.coord_env
         lab = list(coords.keys()) + list(coords.keys())[:2]
 
-     
         def is_inter(inter: List[float], ind: int):
             """Check if the intersection between the segement [A, B] 
             and the border number i is both inside [A, B] and the border."""
@@ -141,6 +139,20 @@ class Environment:
                         return False
         return True
 
+    def plot_circles(self, ax, scale: int, circles=[0, 1, 2, 3]):
+        """Add on the axis the circles representing the resources."""
+        for c_i, (circle_name, circle) in enumerate(self.coord_circ.items()):
+            if c_i in circles:
+                x = circle[0] * scale
+                y = circle[1] * scale
+                r = circle[2] * scale
+                color = circle[3]
+                patch_circle = Circle((x, y), r, color=color)
+
+                ax.add_patch(patch_circle)
+
+                ax.text(x, y, circle_name)
+
     def plot(self, ax=None, save_fig: bool = False):
         """Plot the environment, but not the Agent.
 
@@ -166,16 +178,7 @@ class Environment:
                 [coords[lab[len(lab) - 1]], coords[lab[1]]],
                 '-', color='black', lw=2)
 
-        for circle_name, circle in self.coord_circ.items():
-            x = circle[0]
-            y = circle[1]
-            r = circle[2]
-            color = circle[3]
-            patch_circle = Circle((x, y), r, color=color)
-
-            ax.add_patch(patch_circle)
-
-            ax.text(x, y, circle_name)
+        self.plot_circles(ax, scale=1, )
 
         ax.axis('off')
 
