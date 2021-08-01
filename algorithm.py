@@ -1,3 +1,4 @@
+from typing import Any, Dict
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,7 +6,7 @@ from matplotlib.colors import Normalize
 import pandas as pd
 
 
-from agent import Agent, Control, Zeta, Homeostatic, Control
+from agent import Agent, ControlT, ZetaT, HomeostaticT, ControlT
 from environment import Environment
 from nets import Net_J, Net_f
 
@@ -65,31 +66,25 @@ class Algorithm:
         # tiredness is not above 6.
         # For the second action (running), we verify that the tiredness is
         # not above 3.
-        self.actions_controls = [
-            # walking
-            control_walking,  # -> constraints[0]
-            # running
-            control_running,  # -> constraints[1]
-            # turning an angle to the left
-            [0, 0, 0, 0, 0.001, 0, 0, 0, 0],  # etc...
-            # turning an angle to the right
-            [0, 0, 0, 0, 0.001, 0, 0, 0, 0],
-            # sleeping
-            [0, 0, 0, 0, 0, -0.001, 0, 0, 0],
-            # get resource 1
-            [0.1, 0, 0, 0, 0, 0, 0, 0, 0],
-            # get resource 2
-            [0, 0.1, 0, 0, 0, 0, 0, 0, 0],
-            # get resource 3
-            [0, 0, 0.1, 0, 0, 0, 0, 0, 0],
-            # get resource 4
-            [0, 0, 0, 0.1, 0, 0, 0, 0, 0],
-            # not doing anything
-            [0, 0, 0, 0, 0, 0, 0, 0, 0]]
+
+        self.actions_controls: Dict[str, Any] = {
+            "walking": control_walking,  # -> constraints[0]
+            "running": control_running,  # -> constraints[1]
+            "turning trigo": [0, 0, 0, 0, 0.001, 0, 0, 0, 0],  # etc...
+            "turning antitrigo": [0, 0, 0, 0, 0.001, 0, 0, 0, 0],
+            "sleeping": [0, 0, 0, 0, 0, -0.001, 0, 0, 0],
+            "get resource 1": [0.1, 0, 0, 0, 0, 0, 0, 0, 0],
+            "get resource 2": [0, 0.1, 0, 0, 0, 0, 0, 0, 0],
+            "get resource 3": [0, 0, 0.1, 0, 0, 0, 0, 0, 0],
+            "get resource 4": [0, 0, 0, 0.1, 0, 0, 0, 0, 0],
+            "not doing anything": [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        }
+
         # Keep in mind that the agent looses resources and energy even
         # if he does nothing via the function f.
-        self.actions_controls = [torch.Tensor(
-            x) for x in self.actions_controls]
+        self.actions_controls = {
+            key: torch.Tensor(x)
+            for key, x in self.actions_controls.items()}
 
         # there are 4 additionnal actions : Going to the 4 resource and eating
         self.nb_actions = len(self.actions_controls) + 4
@@ -114,21 +109,16 @@ class Algorithm:
         self.max_tired = 10
 
         self.meaning_actions = {
-            0: "walking",
-            1: "running",
-            2: "turning trigo",
-            3: "turning anti trigo",
-            4: "sleeping",
-            5: "get resource 1",
-            6: "get resource 2",
-            7: "get resource 3",
-            8: "get resource 4",
-            9: "not doing anything",
+            i: key for i, key
+            in enumerate(self.actions_controls.keys())}
+        meaning_big_actions = {
             10: "going direcly to resource 1",
             11: "going direcly to resource 2",
             12: "going direcly to resource 3",
             13: "going direcly to resource 4",
         }
+
+        self.meaning_actions.update(meaning_big_actions)
 
         # If one of the agent resource is lower than min_resource,
         # we put it back at min_resource
@@ -157,18 +147,6 @@ class Algorithm:
         """
         Return a list of bool showing which action is permitted or not.
 
-        possible_actions = [
-            # walking
-            # running
-            # turning an angle to the left
-            # turning an angle to the right
-            # sleeping
-            # get resource 1
-            # get resource 2
-            # get resource 3
-            # get resource 4
-            # not doing anything
-        ]
         + 4 for the action of going to a resource after seeing it
         """
         # There are 4 more possible actions:
@@ -183,10 +161,12 @@ class Algorithm:
             possible_actions[0] = False
 
         # He cannot escape the environment when walking.
+        # TODO: zeta_meaning["x"] = 6
+        # TODO: x_indice = 6
         x_walk = self.agent.zeta[6] + self.time_step * \
-            self.actions_controls[0][int(self.agent.zeta[8])][6]
+            self.actions_controls["walking"][int(self.agent.zeta[8])][6]
         y_walk = self.agent.zeta[7] + self.time_step * \
-            self.actions_controls[0][int(self.agent.zeta[8])][7]
+            self.actions_controls["walking"][int(self.agent.zeta[8])][7]
         x_walk, y_walk = float(x_walk), float(y_walk)
         if not self.env.is_point_inside(x_walk, y_walk):
             possible_actions[0] = False
@@ -197,9 +177,9 @@ class Algorithm:
 
         # He cannot escape the environment when running.
         x_run = self.agent.zeta[6] + self.time_step * \
-            self.actions_controls[1][int(self.agent.zeta[8])][6]
+            self.actions_controls["running"][int(self.agent.zeta[8])][6]
         y_run = self.agent.zeta[7] + self.time_step * \
-            self.actions_controls[1][int(self.agent.zeta[8])][7]
+            self.actions_controls["running"][int(self.agent.zeta[8])][7]
 
         x_run, y_run = float(x_run), float(y_run)
         if not self.env.is_point_inside(x_run, y_run):
@@ -255,7 +235,7 @@ class Algorithm:
 
         return possible_actions
 
-    def euler_method(self, u: Control):
+    def euler_method(self, u: ControlT):
         """Euler method for tiny time steps.
 
         Parameters
@@ -271,7 +251,7 @@ class Algorithm:
             self.agent.dynamics(self.agent.zeta, u)
         return self.agent.zeta + delta_zeta
 
-    def integrate_multiple_steps(self, duration: float, control: Control):
+    def integrate_multiple_steps(self, duration: float, control: ControlT):
         """We integrate rigorously with an exponential over 
         long time period the differential equation.
 
@@ -328,20 +308,20 @@ class Algorithm:
             time_to_walk = distance * self.time_step / self.walking_speed
 
             angle = int(self.agent.zeta[8])
-            control = self.actions_controls[0][angle][:6]
+            control = self.actions_controls["walking"][angle][:6]
             new_zeta = self.integrate_multiple_steps(time_to_walk, control)
             new_zeta[6] = self.env.coord_circ[circle][0]
             new_zeta[7] = self.env.coord_circ[circle][1]
             return new_zeta
         else:
             # If the agent is already on the resource, then consuming it is done instantly
-            u = self.actions_controls[9]
+            u = self.actions_controls["not doing anything"]
 
             self.agent.zeta = self.euler_method(u)
 
             return new_zeta
 
-    def new_state(self, a: int):
+    def new_state(self, a: int) -> ZetaT:
         """Return the new state after an action is taken.
 
         Parameter:
@@ -373,12 +353,13 @@ class Algorithm:
         --------
         The new states.
         """
+        new_zeta = torch.empty(9)
         # 4 is sleeping
         if a == 4:
             # The new state is when the agent wakes up
             # Therefore, we integrate the differential equation until this time
             duration_sleep = self.n_min_time_sleep * self.time_step
-            control_sleep = self.actions_controls[4][:6]
+            control_sleep = self.actions_controls["sleeping"][:6]
             new_zeta = self.integrate_multiple_steps(
                 duration_sleep, control_sleep)
 
@@ -398,15 +379,13 @@ class Algorithm:
         else:
             u = torch.zeros(self.agent.zeta.shape)
 
-            map_action_control = {
-                i: self.actions_controls[i] for i in range(2, 10)}
-
-            map_action_control[0] = self.actions_controls[0][int(
-                self.agent.zeta[8])]  # walk
-            map_action_control[1] = self.actions_controls[1][int(
-                self.agent.zeta[8])]  # run
-
-            u = map_action_control[a]
+            a_meaning = list(self.actions_controls.keys())[a]
+            if a_meaning == "walking":
+                u = self.actions_controls["walking"][int(self.agent.zeta[8])]
+            elif a_meaning == "running":
+                u = self.actions_controls["running"][int(self.agent.zeta[8])]
+            else:
+                u = self.actions_controls[a_meaning]
 
             # Euler method to calculate the new zeta.
             new_zeta = self.euler_method(u)
@@ -417,10 +396,10 @@ class Algorithm:
                 new_zeta[8] = new_zeta[8] + 1
             elif a == 3:
                 new_zeta[8] = new_zeta[8] - 1
-            if new_zeta[8] == len(self.actions_controls[0]):
+            if new_zeta[8] == len(self.actions_controls["walking"]):
                 new_zeta[8] = 0
             elif new_zeta[8] == -1:
-                new_zeta[8] = len(self.actions_controls[0]) - 1
+                new_zeta[8] = len(self.actions_controls["walking"]) - 1
 
         return new_zeta
 
@@ -725,7 +704,7 @@ class Algorithm:
             f"Evolution of the log-loss (moving average with "
             f"{self.N_rolling} frames)")
 
-    def plot_position(self, ax, zeta: Zeta):
+    def plot_position(self, ax, zeta: ZetaT):
         """Plot the position with an arrow.
 
         Parameters:
