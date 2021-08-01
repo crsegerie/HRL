@@ -153,6 +153,7 @@ class Algorithm:
         self.historic_actions = []
         self.historic_losses = []  # will contain a list of 2d [L_f, L_J]
 
+    
     def actions_possible(self):
         """
         Return a list of bool showing which action is permitted or not.
@@ -422,6 +423,7 @@ class Algorithm:
 
         return new_zeta
 
+    
     def evaluate_action(self, action: int):
         """Return the score associated with the action.
 
@@ -494,6 +496,7 @@ class Algorithm:
         self.net_f.train()
         return score.detach().numpy()
 
+    
     def simulation_one_step(self, k: int):
         """Simulate one step.
 
@@ -743,6 +746,7 @@ class Algorithm:
         ax.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
         ax.set_title("Position and orientation of the agent")
 
+    
     def plot(self, frame: int,  scale=5):
         """Plot the position, angle and the ressources of the agent.
 
@@ -797,6 +801,7 @@ class Algorithm:
         print(name_fig)
         plt.close(fig)
 
+    
     def simulation(self):
 
         for k in range(self.N_iter):

@@ -1,3 +1,4 @@
+from typing import List
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import numpy as np
@@ -63,6 +64,7 @@ class Environment:
         else:
             return False
 
+    
     def is_segment_inside(self, xa: float, xb: float, ya: float, yb: float):
         """Check if the segment AB with A(xa, ya) and B(xb, yb) is completely
         inside the polygon.
@@ -74,19 +76,22 @@ class Environment:
         lab = list(coords.keys()) + list(coords.keys())[:2]
         n_inter = 0
 
-        def is_inter(inter, ind):
-            inter_in_AB = (inter[0] >= np.minimum(xa, xb)) and \
-                          (inter[0] <= np.maximum(xa, xb)) and \
-                          (inter[1] >= np.minimum(ya, yb)) and \
-                          (inter[1] <= np.maximum(ya, yb))
-            inter_in_border = (inter[0] >= np.minimum(coords[lab[ind]],
-                                                      coords[lab[ind + 2]])) and \
-                (inter[0] <= np.maximum(coords[lab[ind]],
-                                        coords[lab[ind + 2]])) and \
-                (inter[1] >= np.minimum(coords[lab[ind + 1]],
-                                        coords[lab[ind + 3]])) and \
-                (inter[1] <= np.maximum(coords[lab[ind + 1]],
-                                        coords[lab[ind + 3]]))
+     
+        def is_inter(inter: List[float], ind: int):
+            """Check if the intersection is inside AB."""
+            inter_in_AB = (inter[0] >= min(xa, xb)) and \
+                          (inter[0] <= max(xa, xb)) and \
+                          (inter[1] >= min(ya, yb)) and \
+                          (inter[1] <= max(ya, yb))
+            inter_in_border = (inter[0] >= min(coords[lab[ind]],
+                                               coords[lab[ind + 2]])) and \
+                (inter[0] <= max(coords[lab[ind]],
+                                 coords[lab[ind + 2]])) and \
+                (inter[1] >= min(coords[lab[ind + 1]],
+                                 coords[lab[ind + 3]])) and \
+                (inter[1] <= max(coords[lab[ind + 1]],
+                                 coords[lab[ind + 3]]))
+
             if inter_in_AB and inter_in_border:
                 return True
             return False
@@ -102,12 +107,12 @@ class Environment:
                 else:
                     if ya == yb:
                         if ya == coords[lab[i + 1]]:
-                            inter_in_border = (np.minimum(xa, xb) <=
-                                               np.maximum(coords[lab[i]],
-                                                          coords[lab[i + 2]])) and \
-                                              (np.maximum(xa, xb) >=
-                                               np.minimum(coords[lab[i]],
-                                                          coords[lab[i + 2]]))
+                            inter_in_border = (min(xa, xb) <=
+                                               max(coords[lab[i]],
+                                                   coords[lab[i + 2]])) and \
+                                              (max(xa, xb) >=
+                                               min(coords[lab[i]],
+                                                   coords[lab[i + 2]]))
                             if inter_in_border:
                                 n_inter += 1
                     else:
@@ -119,12 +124,12 @@ class Environment:
             for i in range(0, len(lab) - 2, 2):
                 if coords[lab[i]] == coords[lab[i + 2]]:
                     if xa == coords[lab[i]]:
-                        inter_in_border = (np.minimum(ya, yb) <=
-                                           np.maximum(coords[lab[i + 1]],
-                                                      coords[lab[i + 3]])) and \
-                                          (np.maximum(ya, yb) >=
-                                           np.minimum(coords[lab[i + 1]],
-                                                      coords[lab[i + 3]]))
+                        inter_in_border = (min(ya, yb) <=
+                                           max(coords[lab[i + 1]],
+                                               coords[lab[i + 3]])) and \
+                                          (max(ya, yb) >=
+                                           min(coords[lab[i + 1]],
+                                               coords[lab[i + 3]]))
                         if inter_in_border:
                             n_inter += 1
                 else:
