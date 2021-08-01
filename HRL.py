@@ -13,16 +13,22 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
-# Random seed
-seed = 0
-set_all_seeds(seed)
+def main():
+    # Random seed
+    seed = 0
+    set_all_seeds(seed)
 
 
-env = Environment()
-agent = Agent()
-net_J = Net_J()
-net_f = Net_f()
-algo = Algorithm(env, agent, net_J, net_f)
+    env = Environment()
+    agent = Agent()
+    net_J = Net_J()
+    net_f = Net_f()
+    algo = Algorithm(env, agent, net_J, net_f)
 
 
-algo.simulation()
+    algo.simulation()
+
+
+
+if __name__ == "__main__":
+    main()
