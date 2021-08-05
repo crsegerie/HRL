@@ -203,18 +203,18 @@ class Algorithm:
                 len(self.actions_controls) + 4)]
             possible_actions[4] = True
 
-        def is_near_ressource(circle_i: int):
-            dist = (self.agent.zeta[6] - self.env.circles[circle_i].x)**2 + (
-                self.agent.zeta[7] - self.env.circles[circle_i].y)**2
-            radius = self.env.circles[circle_i].r**2
+        def is_near_ressource(resource_i: int):
+            dist = (self.agent.zeta[6] - self.env.resources[resource_i].x)**2 + (
+                self.agent.zeta[7] - self.env.resources[resource_i].y)**2
+            radius = self.env.resources[resource_i].r**2
             return dist < radius
 
-        def check_resource(circle_i: int):
-            index_circle = 4+circle_i
-            if self.agent.zeta[circle_i] >= self.constraints[index_circle]:
-                possible_actions[index_circle] = False
-            if not is_near_ressource(circle_i):
-                possible_actions[index_circle] = False
+        def check_resource(resource_i: int):
+            resource_i = 4+resource_i
+            if self.agent.zeta[resource_i] >= self.constraints[resource_i]:
+                possible_actions[resource_i] = False
+            if not is_near_ressource(resource_i):
+                possible_actions[resource_i] = False
 
         for resource in range(4):
             check_resource(resource)
@@ -222,9 +222,9 @@ class Algorithm:
         def is_resource_visible(resource: int):
             """Check if segment between agent and resource i is visible"""
             xa = float(self.agent.zeta[6])
-            xb = self.env.circles[resource].x
+            xb = self.env.resources[resource].x
             ya = float(self.agent.zeta[7])
-            yb = self.env.circles[resource].y
+            yb = self.env.resources[resource].y
             return self.env.is_segment_inside(xa, xb, ya, yb)
 
         for resource in range(4):
@@ -254,7 +254,7 @@ class Algorithm:
         long time period the differential equation.
 
         This function is usefull in the case of big actions, 
-        such as going direclty to one of the circles.
+        such as going direclty to one of the resource.
 
         PARAMETER:
         ----------
@@ -276,13 +276,13 @@ class Algorithm:
         new_zeta[:6] = new_x - self.agent.x_star
         return new_zeta
 
-    def going_and_get_resource(self, circle_i: int):
+    def going_and_get_resource(self, resource_i: int):
         """Return the new state associated with the special action a going 
-        direclty to the circle.
+        direclty to the resource.
 
         Parameter:
         ----------
-        circle : example : "circle_1
+        resource : example : "resource_1
 
         Returns:
         --------
@@ -293,10 +293,10 @@ class Algorithm:
 
         agent_x = self.agent.zeta[6]
         agent_y = self.agent.zeta[7]
-        circle_x = self.env.circles[circle_i].x
-        circle_y = self.env.circles[circle_i].y
-        distance = np.sqrt((agent_x - circle_x)**2 +
-                           (agent_y - circle_y)**2)
+        resource_x = self.env.resources[resource_i].x
+        resource_y = self.env.resources[resource_i].y
+        distance = np.sqrt((agent_x - resource_x)**2 +
+                           (agent_y - resource_y)**2)
 
         if distance != 0:
             # If the agent is at a distance d from the resource,
@@ -308,8 +308,8 @@ class Algorithm:
             angle = int(self.agent.zeta[8])
             control = self.actions_controls["walking"][angle][:6]
             new_zeta = self.integrate_multiple_steps(time_to_walk, control)
-            new_zeta[6] = self.env.circles[circle_i].x
-            new_zeta[7] = self.env.circles[circle_i].y
+            new_zeta[6] = self.env.resources[resource_i].x
+            new_zeta[7] = self.env.resources[resource_i].y
             return new_zeta
         else:
             # If the agent is already on the resource, then consuming it is done instantly
@@ -339,11 +339,11 @@ class Algorithm:
         ]
 
         And we have also complementatry actions:
-        action_circle = {
-            10: "circle_0",
-            11: "circle_1",
-            12: "circle_2",
-            13: "circle_3",
+        action_resource = {
+            10: "resource_0",
+            11: "resource_1",
+            12: "resource_2",
+            13: "resource_3",
         }
 
 
@@ -363,15 +363,15 @@ class Algorithm:
 
         # going and getting the resource
         elif a in [10, 11, 12, 13]:
-            action_circle = {  # TODO: put next to init
-                10: 0, # action 10 = going direcly to circle 0
+            action_resource = {  # TODO: put next to init
+                10: 0, # action 10 = going direcly to resource 0
                 11: 1, # etc...
                 12: 2, 
                 13: 3,
             }
-            for a_, circle in action_circle.items():
+            for a_, resource in action_resource.items():
                 if a == a_:
-                    new_zeta = self.going_and_get_resource(circle)
+                    new_zeta = self.going_and_get_resource(resource)
 
         # Other elementary actions
         else:
@@ -634,7 +634,7 @@ class Algorithm:
         ax.axis('off')
         ax.invert_yaxis()
 
-        self.env.plot_circles(ax, scale, circles=[resource_id])
+        self.env.plot_resources(ax, scale, resources=[resource_id])
 
         ax.set_title(f'Deviation function (resource {resource_id} missing)')
         cbar = fig.colorbar(im, extend='both', shrink=0.4, ax=ax)

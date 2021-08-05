@@ -8,8 +8,8 @@ from dataclasses import dataclass
 
 
 @dataclass
-class CircleDC:
-    """Circle representing a type of resource in the environmeet."""
+class ResourceDC:
+    """Resource representing a type of resource in the environmeet."""
 
     x: float
     y: float
@@ -40,11 +40,11 @@ class Environment:
             'xq': 5, 'yq': 2,
             'xr': 5, 'yr': 1}
 
-        self.circles: List[CircleDC] = [
-            CircleDC(x=1.5, y=4.25, r=0.3, color='red'),
-            CircleDC(x=4.5, y=1.5, r=0.3, color='blue'),
-            CircleDC(x=8, y=5.5, r=0.3, color='orange'),
-            CircleDC(x=6.5, y=0.75, r=0.3, color='green'),
+        self.resources: List[ResourceDC] = [
+            ResourceDC(x=1.5, y=4.25, r=0.3, color='red'),
+            ResourceDC(x=4.5, y=1.5, r=0.3, color='blue'),
+            ResourceDC(x=8, y=5.5, r=0.3, color='orange'),
+            ResourceDC(x=6.5, y=0.75, r=0.3, color='green'),
         ]
 
     def is_point_inside(self, x: float, y: float):
@@ -152,19 +152,19 @@ class Environment:
                         return False
         return True
 
-    def plot_circles(self, ax, scale: int, circles: List[int]=[0, 1, 2, 3]):
-        """Add on the axis the circles representing the resources."""
-        for c_i, circle in enumerate(self.circles):
-            if c_i in circles:
-                x = circle.x * scale
-                y = circle.y * scale
-                r = circle.r * scale
-                color = circle.color
+    def plot_resources(self, ax, scale: int, resources: List[int]=[0, 1, 2, 3]):
+        """Add on the axis the resources representing the resources."""
+        for c_i, resource in enumerate(self.resources):
+            if c_i in resources:
+                x = resource.x * scale
+                y = resource.y * scale
+                r = resource.r * scale
+                color = resource.color
                 patch_circle = Circle((x, y), r, color=color)
 
                 ax.add_patch(patch_circle)
-                circle_name = f"circle_{c_i}"
-                ax.text(x, y, circle_name)
+                resource_name = f"resource_{c_i}"
+                ax.text(x, y, resource_name)
 
     def plot(self, ax=None, save_fig: bool = False):
         """Plot the environment, but not the Agent.
@@ -191,7 +191,7 @@ class Environment:
                 [coords[lab[len(lab) - 1]], coords[lab[1]]],
                 '-', color='black', lw=2)
 
-        self.plot_circles(ax, scale=1)
+        self.plot_resources(ax, scale=1)
 
         ax.axis('off')
 
