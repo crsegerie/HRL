@@ -24,10 +24,10 @@ class Agent:
         angle_visual_field : float
             in radiant. Not implemented.
         zeta : torch.tensor
-            zeta[0] : resource 1
-            zeta[1] : resource 2
-            zeta[2] : resource 3
-            zeta[3] : resource 4
+            zeta[0] : resource 0
+            zeta[1] : resource 1
+            zeta[2] : resource 2
+            zeta[3] : resource 3
             zeta[4] : muscular energy (muscular resource)
             zeta[5] : aware energy (aware resource) : low if sleepy.
             zeta[6] : x-coordinate
