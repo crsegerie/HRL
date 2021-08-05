@@ -2,9 +2,9 @@ from numpy.core.fromnumeric import shape
 import torch
 from math import pi
 
-ZetaT = torch.Tensor(shape(9))
-ControlT = torch.Tensor(shape(9))
-HomeostaticT = torch.Tensor(shape(6))
+ZetaT = type(torch.Tensor(shape(9)))
+ControlT = type(torch.Tensor(shape(9)))
+HomeostaticT = type(torch.Tensor(shape(6)))
 
 
 class Agent:
