@@ -210,11 +210,11 @@ class Algorithm:
             return dist < radius
 
         def check_resource(resource_i: int):
-            resource_i = 4+resource_i
-            if self.agent.zeta[resource_i] >= self.constraints[resource_i]:
-                possible_actions[resource_i] = False
+            index_resource = 4+resource_i
+            if self.agent.zeta[resource_i] >= self.constraints[index_resource]:
+                possible_actions[index_resource] = False
             if not is_near_ressource(resource_i):
-                possible_actions[resource_i] = False
+                possible_actions[index_resource] = False
 
         for resource in range(4):
             check_resource(resource)
