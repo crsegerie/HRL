@@ -144,8 +144,7 @@ class Algorithm:
         self.historic_losses = []  # will contain a list of 2d [L_f, L_J]
 
     def actions_possible(self):
-        """
-        Return a list of bool showing which action is permitted or not.
+        """Return a list of bool showing which action is permitted or not.
 
         + 4 for the action of going to a resource after seeing it
         """
