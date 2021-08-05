@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -73,10 +73,10 @@ class Algorithm:
             "turning trigo": [0, 0, 0, 0, 0.001, 0, 0, 0, 0],  # etc...
             "turning antitrigo": [0, 0, 0, 0, 0.001, 0, 0, 0, 0],
             "sleeping": [0, 0, 0, 0, 0, -0.001, 0, 0, 0],
-            "get resource 1": [0.1, 0, 0, 0, 0, 0, 0, 0, 0],
-            "get resource 2": [0, 0.1, 0, 0, 0, 0, 0, 0, 0],
-            "get resource 3": [0, 0, 0.1, 0, 0, 0, 0, 0, 0],
-            "get resource 4": [0, 0, 0, 0.1, 0, 0, 0, 0, 0],
+            "get resource 0": [0.1, 0, 0, 0, 0, 0, 0, 0, 0],
+            "get resource 1": [0, 0.1, 0, 0, 0, 0, 0, 0, 0],
+            "get resource 2": [0, 0, 0.1, 0, 0, 0, 0, 0, 0],
+            "get resource 3": [0, 0, 0, 0.1, 0, 0, 0, 0, 0],
             "not doing anything": [0, 0, 0, 0, 0, 0, 0, 0, 0]
         }
 
@@ -112,10 +112,10 @@ class Algorithm:
             i: key for i, key
             in enumerate(self.actions_controls.keys())}
         meaning_big_actions = {
-            10: "going direcly to resource 1",
-            11: "going direcly to resource 2",
-            12: "going direcly to resource 3",
-            13: "going direcly to resource 4",
+            10: "going direcly to resource 0",
+            11: "going direcly to resource 1",
+            12: "going direcly to resource 2",
+            13: "going direcly to resource 3",
         }
 
         self.meaning_actions.update(meaning_big_actions)
@@ -203,35 +203,33 @@ class Algorithm:
                 len(self.actions_controls) + 4)]
             possible_actions[4] = True
 
-        def is_near_ressource(circle: str):
-            """circle:  (str) 
-                example 'circle_1'"""
-            dist = (self.agent.zeta[6] - self.env.coord_circ[circle][0])**2 + (
-                self.agent.zeta[7] - self.env.coord_circ[circle][1])**2
-            radius = self.env.coord_circ[circle][2]**2
+        def is_near_ressource(circle_i: int):
+            dist = (self.agent.zeta[6] - self.env.circles[circle_i].x)**2 + (
+                self.agent.zeta[7] - self.env.circles[circle_i].y)**2
+            radius = self.env.circles[circle_i].r**2
             return dist < radius
 
-        def check_resource(i: int):
-            index_circle = 4+i
-            if self.agent.zeta[0+i - 1] >= self.constraints[index_circle]:
+        def check_resource(circle_i: int):
+            index_circle = 4+circle_i
+            if self.agent.zeta[circle_i] >= self.constraints[index_circle]:
                 possible_actions[index_circle] = False
-            if not is_near_ressource(f'circle_{str(i)}'):
+            if not is_near_ressource(circle_i):
                 possible_actions[index_circle] = False
 
-        for resource in range(1, 5):
+        for resource in range(4):
             check_resource(resource)
 
         def is_resource_visible(resource: int):
             """Check if segment between agent and resource i is visible"""
             xa = float(self.agent.zeta[6])
-            xb = self.env.coord_circ[f'circle_{str(resource)}'][0]
+            xb = self.env.circles[resource].x
             ya = float(self.agent.zeta[7])
-            yb = self.env.coord_circ[f'circle_{str(resource)}'][1]
+            yb = self.env.circles[resource].y
             return self.env.is_segment_inside(xa, xb, ya, yb)
 
-        for resource in range(1, 5):
+        for resource in range(4):
             if not is_resource_visible(resource):
-                possible_actions[9+resource] = False
+                possible_actions[10+resource] = False
 
         return possible_actions
 
@@ -278,7 +276,7 @@ class Algorithm:
         new_zeta[:6] = new_x - self.agent.x_star
         return new_zeta
 
-    def going_and_get_resource(self, circle: str):
+    def going_and_get_resource(self, circle_i: int):
         """Return the new state associated with the special action a going 
         direclty to the circle.
 
@@ -295,8 +293,8 @@ class Algorithm:
 
         agent_x = self.agent.zeta[6]
         agent_y = self.agent.zeta[7]
-        circle_x = self.env.coord_circ[circle][0]
-        circle_y = self.env.coord_circ[circle][1]
+        circle_x = self.env.circles[circle_i].x
+        circle_y = self.env.circles[circle_i].y
         distance = np.sqrt((agent_x - circle_x)**2 +
                            (agent_y - circle_y)**2)
 
@@ -310,8 +308,8 @@ class Algorithm:
             angle = int(self.agent.zeta[8])
             control = self.actions_controls["walking"][angle][:6]
             new_zeta = self.integrate_multiple_steps(time_to_walk, control)
-            new_zeta[6] = self.env.coord_circ[circle][0]
-            new_zeta[7] = self.env.coord_circ[circle][1]
+            new_zeta[6] = self.env.circles[circle_i].x
+            new_zeta[7] = self.env.circles[circle_i].y
             return new_zeta
         else:
             # If the agent is already on the resource, then consuming it is done instantly
@@ -333,19 +331,19 @@ class Algorithm:
             2# turning an angle to the left
             3# turning an angle to the right
             4# sleeping
-            5# get resource 1
-            6# get resource 2
-            7# get resource 3
-            8# get resource 4
+            5# get resource 0
+            6# get resource 1
+            7# get resource 2
+            8# get resource 3
             9# not doing anything
         ]
 
         And we have also complementatry actions:
         action_circle = {
-            10: "circle_1",
-            11: "circle_2",
-            12: "circle_3",
-            13: "circle_4",
+            10: "circle_0",
+            11: "circle_1",
+            12: "circle_2",
+            13: "circle_3",
         }
 
 
@@ -366,10 +364,10 @@ class Algorithm:
         # going and getting the resource
         elif a in [10, 11, 12, 13]:
             action_circle = {  # TODO: put next to init
-                10: "circle_1",
-                11: "circle_2",
-                12: "circle_3",
-                13: "circle_4",
+                10: 0, # action 10 = going direcly to circle 0
+                11: 1, # etc...
+                12: 2, 
+                13: 3,
             }
             for a_, circle in action_circle.items():
                 if a == a_:
@@ -596,14 +594,13 @@ class Algorithm:
                 is_inside[i, j] = self.env.is_point_inside(i/scale, j/scale)
         return is_inside
 
-    def plot_J(self, ax, fig, resource: int, scale: int, is_inside):
+    def plot_J(self, ax, fig, resource_id: int, scale: int, is_inside):
         """Plot of the learned J function.
 
         Parameters:
         -----------
         ax: SubplotBase
-        resource: int
-            1, 2, 3, or 4.
+        resource_i: int
         scale: int
             scale squared gives the number of plotted points for a unt square.
         is_inside : np.ndarray
@@ -630,16 +627,16 @@ class Algorithm:
                     # No muscular nor energic fatigues.
                     zeta = torch.Tensor(
                         [0, 0, 0, 0, 0, 0, i/scale, j/scale, 0])
-                    zeta[resource-1] = -self.agent.x_star[resource-1]
+                    zeta[resource_id] = -self.agent.x_star[resource_id]
                     values[i, j] = self.net_J(zeta).detach().numpy()
 
         im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
         ax.axis('off')
         ax.invert_yaxis()
 
-        self.env.plot_circles(ax, scale, circles=[resource-1])
+        self.env.plot_circles(ax, scale, circles=[resource_id])
 
-        ax.set_title(f'Deviation function (resource {resource} missing)')
+        ax.set_title(f'Deviation function (resource {resource_id} missing)')
         cbar = fig.colorbar(im, extend='both', shrink=0.4, ax=ax)
 
     def plot_ressources(self, ax, frame: int):
@@ -657,10 +654,10 @@ class Algorithm:
         """
 
         zeta_meaning = [
+            "resource_0",
             "resource_1",
             "resource_2",
             "resource_3",
-            "resource_4",
             "muscular energy",
             "aware energy",
             "x",
@@ -773,9 +770,9 @@ class Algorithm:
         self.plot_ressources(ax=ax_resource, frame=frame)
         self.plot_loss(ax=ax_loss, frame=frame)
 
-        for resource in range(4):
-            self.plot_J(ax=axs_J[resource],
-                        fig=fig, resource=resource+1,
+        for resource_id in range(4):
+            self.plot_J(ax=axs_J[resource_id],
+                        fig=fig, resource_id=resource_id,
                         scale=scale, is_inside=is_inside)
 
         plt.tight_layout()

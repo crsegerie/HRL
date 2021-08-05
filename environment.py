@@ -4,6 +4,19 @@ from matplotlib.patches import Circle
 import numpy as np
 
 
+from dataclasses import dataclass
+
+
+@dataclass
+class CircleDC:
+    """Circle representing a type of resource in the environmeet."""
+
+    x: float
+    y: float
+    r: float
+    color: str
+
+
 class Environment:
     def __init__(self):
         # Simulation
@@ -27,12 +40,12 @@ class Environment:
             'xq': 5, 'yq': 2,
             'xr': 5, 'yr': 1}
 
-        # x, y, r, color
-        self.coord_circ = {
-            'circle_1': [1.5, 4.25, 0.3, 'red'],
-            'circle_2': [4.5, 1.5, 0.3, 'blue'],
-            'circle_3': [8, 5.5, 0.3, 'orange'],
-            'circle_4': [6.5, 0.75, 0.3, 'green']}
+        self.circles: List[CircleDC] = [
+            CircleDC(x=1.5, y=4.25, r=0.3, color='red'),
+            CircleDC(x=4.5, y=1.5, r=0.3, color='blue'),
+            CircleDC(x=8, y=5.5, r=0.3, color='orange'),
+            CircleDC(x=6.5, y=0.75, r=0.3, color='green'),
+        ]
 
     def is_point_inside(self, x: float, y: float):
         """Check if a point (x,y) is inside the polygon.
@@ -139,18 +152,18 @@ class Environment:
                         return False
         return True
 
-    def plot_circles(self, ax, scale: int, circles=[0, 1, 2, 3]):
+    def plot_circles(self, ax, scale: int, circles: List[int]=[0, 1, 2, 3]):
         """Add on the axis the circles representing the resources."""
-        for c_i, (circle_name, circle) in enumerate(self.coord_circ.items()):
+        for c_i, circle in enumerate(self.circles):
             if c_i in circles:
-                x = circle[0] * scale
-                y = circle[1] * scale
-                r = circle[2] * scale
-                color = circle[3]
+                x = circle.x * scale
+                y = circle.y * scale
+                r = circle.r * scale
+                color = circle.color
                 patch_circle = Circle((x, y), r, color=color)
 
                 ax.add_patch(patch_circle)
-
+                circle_name = f"circle_{c_i}"
                 ax.text(x, y, circle_name)
 
     def plot(self, ax=None, save_fig: bool = False):
@@ -178,7 +191,7 @@ class Environment:
                 [coords[lab[len(lab) - 1]], coords[lab[1]]],
                 '-', color='black', lw=2)
 
-        self.plot_circles(ax, scale=1, )
+        self.plot_circles(ax, scale=1)
 
         ax.axis('off')
 
