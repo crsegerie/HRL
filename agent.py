@@ -2,9 +2,74 @@ from numpy.core.fromnumeric import shape
 import torch
 from math import pi
 
-ZetaT = type(torch.Tensor(shape(9)))
+ZetaTensorT = type(torch.Tensor(shape(9)))
 ControlT = type(torch.Tensor(shape(9)))
 HomeostaticT = type(torch.Tensor(shape(6)))
+
+
+
+class Zeta:
+    """Internal and external state of the agent."""
+
+    def __init__(self, x = None, y = None) -> None:
+        """zeta : torch.tensor
+        zeta[0] : resource 0
+        zeta[1] : resource 1
+        zeta[2] : resource 2
+        zeta[3] : resource 3
+        zeta[4] : muscular energy (muscular resource)
+        zeta[5] : aware energy (aware resource) : low if sleepy.
+        zeta[6] : x-coordinate
+        zeta[7] : y-coordinate
+        zeta[8] : angle
+
+        Be aware that zeta[:6] is homeostatic and that zeta[6:] aren't.    
+        """
+        self._zeta_tensor : ZetaTensorT = torch.zeros(9)
+        if x and y:
+            self._zeta_tensor[6] = x
+            self._zeta_tensor[7] = y
+        self.shape = 9
+    
+
+    def resource(self, resource_i : int):
+        assert resource_i < 4
+        return self._zeta_tensor[resource_i]
+    
+    
+    @property
+    def muscular_energy(self):
+        return self._zeta_tensor[4]
+
+    @property
+    def aware_energy(self):
+        return self._zeta_tensor[5]
+    
+    @property
+    def x(self):
+        return self._zeta_tensor[6]
+    
+    @property
+    def y(self):
+        return self._zeta_tensor[7]
+
+    @property
+    def angle(self):
+        return self._zeta_tensor[8]
+    
+    @angle.setter
+    def angle(self, value):
+        self._zeta_tensor[8] = value
+
+    @property
+    def homeostatic(self):
+        """Homeostatic level is regulated to a set point."""
+        return self._zeta_tensor[:6]
+
+    @property
+    def position(self):
+        """Position coordinates are regulated to a set point."""
+        return self._zeta_tensor[6:]
 
 
 class Agent:
@@ -23,17 +88,7 @@ class Agent:
             ressource is equal to 10 seconds.
         angle_visual_field : float
             in radiant. Not implemented.
-        zeta : torch.tensor
-            zeta[0] : resource 0
-            zeta[1] : resource 1
-            zeta[2] : resource 2
-            zeta[3] : resource 3
-            zeta[4] : muscular energy (muscular resource)
-            zeta[5] : aware energy (aware resource) : low if sleepy.
-            zeta[6] : x-coordinate
-            zeta[7] : y-coordinate
-            zeta[8] : angle
-            Be aware that zeta[:6] is homeostatic and that zeta[6:] aren't.
+        zeta: state of the agent.
 
         """
         # METAPARAMETERS ##########################################
@@ -51,12 +106,13 @@ class Agent:
         self.angle_visual_field = pi / 10
 
         # UTILS ##################################################
+        
+        # Setting initial position
+        # Btw, at the begining the agent is starving and exhausted...
+        self.zeta: Zeta = Zeta(x=3, y=2)
 
-        self.zeta: ZetaT = torch.zeros(9)
-        self.zeta[6] = 3  # initialization x position for the agent
-        self.zeta[7] = 2  # initialization y position for the agent
 
-    def dynamics(self, zeta: ZetaT, u: ControlT):
+    def dynamics(self, zeta: Zeta, u: ControlT):
         """
         Return the Agent's dynamics which is represented by the f function.
 
@@ -71,8 +127,8 @@ class Agent:
         # Those first coordinate are homeostatic, and with a null control,
         # zeta tends to zero.
 
-        f[:6] = self.coef_herzt * (zeta[:6] + self.x_star) + \
-            u[:6] * (zeta[:6] + self.x_star)
+        f[:6] = self.coef_herzt * (zeta.homeostatic + self.x_star) + \
+            u[:6] * (zeta.homeostatic + self.x_star)
 
         # Those coordinates are not homeostatic : they represent the x-speed,
         # y-speed, and angular-speed.
@@ -80,7 +136,7 @@ class Agent:
         f[6:9] = u[6:9]
         return f
 
-    def drive(self, zeta: ZetaT, epsilon: float = 0.001):
+    def drive(self, zeta: Zeta, epsilon: float = 0.001):
         """
         Return the Agent's drive which is the distance between the agent's 
         state and the homeostatic set point.
@@ -95,6 +151,6 @@ class Agent:
         """
         # in the delta, we only count the internal state.
         # The tree last coordinate do not count in the homeostatic set point.
-        delta = zeta[:6]
+        delta = zeta.homeostatic
         drive_delta = torch.sqrt(epsilon + torch.dot(delta, delta))
         return drive_delta

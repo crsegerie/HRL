@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, List
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,7 +6,7 @@ from matplotlib.colors import Normalize
 import pandas as pd
 
 
-from agent import Agent, ControlT, ZetaT, HomeostaticT, ControlT
+from agent import Agent, ControlT, ZetaTensorT, HomeostaticT, ControlT, Zeta
 from environment import Environment
 from nets import Net_J, Net_f
 
@@ -139,7 +139,7 @@ class Algorithm:
         self.optimizer_f = torch.optim.Adam(
             self.net_f.parameters(), lr=self.learning_rate)
 
-        self.historic_zeta = []
+        self.historic_zeta : List[Zeta] = []
         self.historic_actions = []
         self.historic_losses = []  # will contain a list of 2d [L_f, L_J]
 
@@ -148,6 +148,8 @@ class Algorithm:
 
         + 4 for the action of going to a resource after seeing it
         """
+        zeta = self.agent.zeta
+
         # There are 4 more possible actions:
         # The 4 last actions correspond to going direcly to each of the
         # 4 ressources if possible.
@@ -155,62 +157,63 @@ class Algorithm:
             len(self.actions_controls) + 4)]
 
         # If the agent is too tired in his muscle
-        if self.agent.zeta[4] >= self.constraints[0]:
+        if zeta.muscular_energy >= self.constraints[0]:
             # walking is no more possible
             possible_actions[0] = False
 
         # He cannot escape the environment when walking.
         # TODO: zeta_meaning["x"] = 6
         # TODO: x_indice = 6
-        x_walk = self.agent.zeta[6] + self.time_step * \
-            self.actions_controls["walking"][int(self.agent.zeta[8])][6]
-        y_walk = self.agent.zeta[7] + self.time_step * \
-            self.actions_controls["walking"][int(self.agent.zeta[8])][7]
+        angle = int(zeta.angle)
+        x_walk = zeta.x + self.time_step * \
+            self.actions_controls["walking"][angle][6]
+        y_walk = zeta.y + self.time_step * \
+            self.actions_controls["walking"][angle][7]
         x_walk, y_walk = float(x_walk), float(y_walk)
         if not self.env.is_point_inside(x_walk, y_walk):
             possible_actions[0] = False
 
         # if the agent is too tired, we cannot run.
-        if self.agent.zeta[4] >= self.constraints[1]:
+        if zeta.muscular_energy >= self.constraints[1]:
             possible_actions[1] = False
 
         # He cannot escape the environment when running.
-        x_run = self.agent.zeta[6] + self.time_step * \
-            self.actions_controls["running"][int(self.agent.zeta[8])][6]
-        y_run = self.agent.zeta[7] + self.time_step * \
-            self.actions_controls["running"][int(self.agent.zeta[8])][7]
+        x_run = zeta.x + self.time_step * \
+            self.actions_controls["running"][int(zeta.angle)][6]
+        y_run = zeta.y + self.time_step * \
+            self.actions_controls["running"][int(zeta.angle)][7]
 
         x_run, y_run = float(x_run), float(y_run)
         if not self.env.is_point_inside(x_run, y_run):
             possible_actions[1] = False
 
         # He cannot rotate trigonometrically if too tired.
-        if self.agent.zeta[4] >= self.constraints[2]:
+        if zeta.muscular_energy >= self.constraints[2]:
             possible_actions[2] = False
 
         # He cannot rotate non-trigonometrically if too tired.
-        if self.agent.zeta[4] >= self.constraints[3]:
+        if zeta.muscular_energy >= self.constraints[3]:
             possible_actions[3] = False
 
         # The agent cannot sleep if he is not enouth tired.
-        if self.agent.zeta[5] <= self.constraints[4]:
+        if zeta.aware_energy <= self.constraints[4]:
             possible_actions[4] = False
 
         # If the agent is too sleepy, the only possible action is to sleep.
-        if self.agent.zeta[5] >= self.max_tired:
+        if zeta.aware_energy >= self.max_tired:
             possible_actions = [False for i in range(
                 len(self.actions_controls) + 4)]
             possible_actions[4] = True
 
         def is_near_ressource(resource_i: int):
-            dist = (self.agent.zeta[6] - self.env.resources[resource_i].x)**2 + (
-                self.agent.zeta[7] - self.env.resources[resource_i].y)**2
+            dist = (zeta.x - self.env.resources[resource_i].x)**2 + (
+                zeta.y - self.env.resources[resource_i].y)**2
             radius = self.env.resources[resource_i].r**2
             return dist < radius
 
         def check_resource(resource_i: int):
-            index_resource = 4+resource_i
-            if self.agent.zeta[resource_i] >= self.constraints[index_resource]:
+            index_resource = 4 + resource_i
+            if zeta.resource(resource_i) >= self.constraints[index_resource]:
                 possible_actions[index_resource] = False
             if not is_near_ressource(resource_i):
                 possible_actions[index_resource] = False
@@ -220,9 +223,9 @@ class Algorithm:
 
         def is_resource_visible(resource: int):
             """Check if segment between agent and resource i is visible"""
-            xa = float(self.agent.zeta[6])
+            xa = float(zeta.x)
             xb = self.env.resources[resource].x
-            ya = float(self.agent.zeta[7])
+            ya = float(zeta.y)
             yb = self.env.resources[resource].y
             return self.env.is_segment_inside(xa, xb, ya, yb)
 
@@ -232,7 +235,7 @@ class Algorithm:
 
         return possible_actions
 
-    def euler_method(self, u: ControlT):
+    def euler_method(self, u: ControlT) -> ZetaTensorT:
         """Euler method for tiny time steps.
 
         Parameters
@@ -246,7 +249,7 @@ class Algorithm:
         """
         delta_zeta = self.time_step * \
             self.agent.dynamics(self.agent.zeta, u)
-        return self.agent.zeta + delta_zeta
+        return self.agent.zeta._zeta_tensor + delta_zeta
 
     def integrate_multiple_steps(self, duration: float, control: ControlT):
         """We integrate rigorously with an exponential over 
@@ -266,16 +269,16 @@ class Algorithm:
         -------
         new_zeta. The updated zeta."""
         assert len(control) == 6
-        assert len(self.agent.zeta[:6]) == 6
+        assert len(self.agent.zeta.homeostatic) == 6
 
-        x = self.agent.zeta[:6] + self.agent.x_star
+        x = self.agent.zeta.homeostatic + self.agent.x_star
         rate = self.agent.coef_herzt + control
         new_x = x * torch.exp(rate * duration)
-        new_zeta = self.agent.zeta.clone()
+        new_zeta = self.agent.zeta._zeta_tensor.clone()
         new_zeta[:6] = new_x - self.agent.x_star
         return new_zeta
 
-    def going_and_get_resource(self, resource_i: int):
+    def going_and_get_resource(self, resource_i: int) -> ZetaTensorT:
         """Return the new state associated with the special action a going 
         direclty to the resource.
 
@@ -288,10 +291,10 @@ class Algorithm:
         The new state (zeta), but with the agent who has wlaken to go to 
         the state and so which is therefore more tired.
         """
-        new_zeta = self.agent.zeta
+        new_zeta_tensor = self.agent.zeta._zeta_tensor
 
-        agent_x = self.agent.zeta[6]
-        agent_y = self.agent.zeta[7]
+        agent_x = self.agent.zeta.x
+        agent_y = self.agent.zeta.y
         resource_x = self.env.resources[resource_i].x
         resource_y = self.env.resources[resource_i].y
         distance = np.sqrt((agent_x - resource_x)**2 +
@@ -304,21 +307,22 @@ class Algorithm:
             # equation of its internal state during this time
             time_to_walk = distance * self.time_step / self.walking_speed
 
-            angle = int(self.agent.zeta[8])
+            angle = int(self.agent.zeta.angle)
             control = self.actions_controls["walking"][angle][:6]
-            new_zeta = self.integrate_multiple_steps(time_to_walk, control)
-            new_zeta[6] = self.env.resources[resource_i].x
-            new_zeta[7] = self.env.resources[resource_i].y
-            return new_zeta
+            new_zeta_tensor = self.integrate_multiple_steps(
+                time_to_walk, control)
+            new_zeta_tensor[6] = self.env.resources[resource_i].x
+            new_zeta_tensor[7] = self.env.resources[resource_i].y
+            return new_zeta_tensor
         else:
             # If the agent is already on the resource, then consuming it is done instantly
             u = self.actions_controls["not doing anything"]
 
-            self.agent.zeta = self.euler_method(u)
+            self.agent.zeta._zeta_tensor = self.euler_method(u)
 
-            return new_zeta
+            return new_zeta_tensor
 
-    def new_state(self, a: int) -> ZetaT:
+    def new_state(self, a: int) -> ZetaTensorT:
         """Return the new state after an action is taken.
 
         Parameter:
@@ -350,55 +354,58 @@ class Algorithm:
         --------
         The new states.
         """
-        new_zeta = torch.empty(9)
+        new_zeta = Zeta()
+
         # 4 is sleeping
         if a == 4:
             # The new state is when the agent wakes up
             # Therefore, we integrate the differential equation until this time
             duration_sleep = self.n_min_time_sleep * self.time_step
             control_sleep = self.actions_controls["sleeping"][:6]
-            new_zeta = self.integrate_multiple_steps(
+            new_zeta._zeta_tensor = self.integrate_multiple_steps(
                 duration_sleep, control_sleep)
 
         # going and getting the resource
         elif a in [10, 11, 12, 13]:
             action_resource = {  # TODO: put next to init
-                10: 0, # action 10 = going direcly to resource 0
-                11: 1, # etc...
-                12: 2, 
+                10: 0,  # action 10 = going direcly to resource 0
+                11: 1,  # etc...
+                12: 2,
                 13: 3,
             }
             for a_, resource in action_resource.items():
                 if a == a_:
-                    new_zeta = self.going_and_get_resource(resource)
+                    new_zeta._zeta_tensor = self.going_and_get_resource(
+                        resource)
 
-        # Other elementary actions
+        # Other actions: elementary actions
         else:
             u = torch.zeros(self.agent.zeta.shape)
+            angle = int(self.agent.zeta.angle)
 
             a_meaning = list(self.actions_controls.keys())[a]
             if a_meaning == "walking":
-                u = self.actions_controls["walking"][int(self.agent.zeta[8])]
+                u = self.actions_controls["walking"][angle]
             elif a_meaning == "running":
-                u = self.actions_controls["running"][int(self.agent.zeta[8])]
+                u = self.actions_controls["running"][angle]
             else:
                 u = self.actions_controls[a_meaning]
 
             # Euler method to calculate the new zeta.
-            new_zeta = self.euler_method(u)
+            new_zeta._zeta_tensor = self.euler_method(u)
 
             # If the agent is turning its angle
             # Not in euler because discretized.
             if a == 2:
-                new_zeta[8] = new_zeta[8] + 1
+                new_zeta.angle += 1
             elif a == 3:
-                new_zeta[8] = new_zeta[8] - 1
-            if new_zeta[8] == len(self.actions_controls["walking"]):
-                new_zeta[8] = 0
-            elif new_zeta[8] == -1:
-                new_zeta[8] = len(self.actions_controls["walking"]) - 1
+                new_zeta.angle -= 1
+            if new_zeta.angle == len(self.actions_controls["walking"]):
+                new_zeta.angle = 0
+            elif new_zeta.angle == -1:
+                new_zeta.angle = len(self.actions_controls["walking"]) - 1
 
-        return new_zeta
+        return new_zeta._zeta_tensor
 
     def evaluate_action(self, action: int):
         """Return the score associated with the action.
@@ -419,12 +426,13 @@ class Algorithm:
         --------
         the score : pytorch float.
         """
+        _zeta_tensor = self.agent.zeta._zeta_tensor
         # f is a neural network taking one vector.
         # But this vector contains the information of zeta and u.
         # The u is the one-hot-encoded control associated with the action a
         zeta_u = torch.cat(
-            [self.agent.zeta, torch.zeros(self.nb_actions)])
-        index_control = len(self.agent.zeta) + action
+            [_zeta_tensor, torch.zeros(self.nb_actions)])
+        index_control = len(_zeta_tensor) + action
         zeta_u[index_control] = 1
 
         # Those lines are only used to accelerate the computations but are not
@@ -438,7 +446,7 @@ class Algorithm:
         # In the Hamilton Jacobi Bellman equation, we derivate J by zeta.
         # But we do not want to propagate this gradient.
         # We seek to compute the gradient of J with respect to zeta_to_J.
-        self.agent.zeta.requires_grad = True
+        _zeta_tensor.requires_grad = True
         # zeta_u_to_f.require_grad = False : This is already the default.
 
         # Deactivate dropout and batchnorm but continues to accumulate the gradient.
@@ -452,16 +460,19 @@ class Algorithm:
         # If you want to freeze part of your model and train the rest, you can set
         # requires_grad of the parameters you want to freeze to False.
         f = self.net_f.forward(zeta_u).detach()
-        new_zeta_ = self.agent.zeta + self.time_step * f
-        instant_reward = self.agent.drive(new_zeta_)
+        new_zeta_tensor = _zeta_tensor + self.time_step * f
+        new_zeta = Zeta()
+        new_zeta._zeta_tensor = new_zeta_tensor
+        instant_reward = self.agent.drive(new_zeta)
         grad_ = torch.autograd.grad(
-            self.net_J(self.agent.zeta), self.agent.zeta)[0]
+            self.net_J(_zeta_tensor), _zeta_tensor)[0]
         future_reward = torch.dot(grad_, self.net_f.forward(zeta_u))
         future_reward = future_reward.detach()
 
         score = instant_reward + future_reward
 
-        self.agent.zeta.requires_grad = False
+        _zeta_tensor.requires_grad = False
+        self.agent.zeta._zeta_tensor = _zeta_tensor
 
         for param in self.net_f.parameters():
             param.requires_grad = True
@@ -482,12 +493,13 @@ class Algorithm:
         Returns
         -------
         (action, loss): int, np.ndarray"""
+        _zeta = self.agent.zeta._zeta_tensor
         # if you are exacly on 0 (empty resource) you get stuck
         # because of the nature of the differential equation.
         for i in range(6):
             # zeta = x - x_star
-            if self.agent.zeta[i] + self.agent.x_star[i] < self.min_resource:
-                self.agent.zeta[i] = -self.agent.x_star[i] + self.min_resource
+            if _zeta[i] + self.agent.x_star[i] < self.min_resource:
+                _zeta[i] = -self.agent.x_star[i] + self.min_resource
 
         possible_actions = self.actions_possible()
         indexes_possible_actions = [i for i in range(
@@ -508,21 +520,21 @@ class Algorithm:
                     action = act
 
         zeta_u = torch.cat(
-            [self.agent.zeta, torch.zeros(self.nb_actions)])
-        zeta_u[len(self.agent.zeta) + action] = 1
+            [_zeta, torch.zeros(self.nb_actions)])
+        zeta_u[len(_zeta) + action] = 1
 
-        new_zeta = self.new_state(action)  # actual choosen new_zeta
+        _new_zeta = self.new_state(action)  # actual choosen new_zeta
 
         coeff = self.asym_coeff
         # set of big actions leading directly to the resources and 4 is for sleeping
         if action in {4, 10, 11, 12, 13}:
             coeff = 1
 
-        predicted_new_zeta = self.agent.zeta + self.time_step * \
+        predicted_new_zeta = _zeta + self.time_step * \
             self.net_f.forward(zeta_u)
 
-        Loss_f = coeff * torch.dot(new_zeta - predicted_new_zeta,
-                                   new_zeta - predicted_new_zeta)
+        Loss_f = coeff * torch.dot(_new_zeta - predicted_new_zeta,
+                                   _new_zeta - predicted_new_zeta)
 
         self.optimizer_J.zero_grad()
         self.optimizer_f.zero_grad()
@@ -530,26 +542,28 @@ class Algorithm:
         self.optimizer_J.zero_grad()
         self.optimizer_f.step()
 
-        self.agent.zeta.requires_grad = True
+        _zeta.requires_grad = True
 
         # if drive = d(\zeta_t)= 1 and globally convex environment (instant
         # and long-term improvements are in the same direction)
 
         # futur drive = d(\zeta_t, u_a) = 0.9
+        new_zeta = Zeta()
+        new_zeta._zeta_tensor = _new_zeta
         instant_drive = self.agent.drive(new_zeta)
 
         # negative
-        delta_deviation = torch.dot(torch.autograd.grad(self.net_J(self.agent.zeta),
-                                                        self.agent.zeta)[0],
+        delta_deviation = torch.dot(torch.autograd.grad(self.net_J(_zeta),
+                                                        _zeta)[0],
                                     self.net_f.forward(zeta_u))
 
         # 0.1 current deviation
         discounted_deviation = - torch.log(torch.tensor(self.gamma)) * \
-            self.net_J.forward(self.agent.zeta)
+            self.net_J.forward(_zeta)
         Loss_J = torch.square(
             instant_drive + delta_deviation - discounted_deviation)
 
-        self.agent.zeta.requires_grad = False
+        _zeta.requires_grad = False
 
         self.optimizer_J.zero_grad()
         self.optimizer_f.zero_grad()
@@ -557,12 +571,12 @@ class Algorithm:
         self.optimizer_f.zero_grad()
         self.optimizer_J.step()
 
-        self.agent.zeta = new_zeta
+        self.agent.zeta._zeta_tensor = _new_zeta
 
         if (k % self.N_print) == 0:
             print("Iteration:", k, "/", self.N_iter - 1)
             print("Action:", action)
-            print("zeta:", self.agent.zeta)
+            print("zeta:", _zeta)
             print("")
 
         if (k % self.N_save_weights) == 0:
@@ -663,9 +677,10 @@ class Algorithm:
             "y",
             "angle",
         ]
+        
+        historic_zeta_tensor = [zeta._zeta_tensor.detach().numpy() for zeta in self.historic_zeta[:frame+1]]
 
-        df = pd.DataFrame(self.historic_zeta[:frame+1],
-                          columns=zeta_meaning)
+        df = pd.DataFrame(historic_zeta_tensor, columns=zeta_meaning)
         df.plot(ax=ax, grid=True, yticks=list(range(0, 10)))  # TODO
         ax.set_ylabel('value')
         ax.set_xlabel('frames')
@@ -700,7 +715,7 @@ class Algorithm:
             f"Evolution of the log-loss (moving average with "
             f"{self.N_rolling} frames)")
 
-    def plot_position(self, ax, zeta: ZetaT):
+    def plot_position(self, ax, zeta: Zeta):
         """Plot the position with an arrow.
 
         Parameters:
@@ -714,10 +729,10 @@ class Algorithm:
         Warning : abscisse is not time but step!
         """
         self.env.plot(ax=ax)  # initialisation of plt with background
-        x = zeta[6]
-        y = zeta[7]
+        x = zeta.x
+        y = zeta.y
 
-        num_angle = int(zeta[8])
+        num_angle = int(zeta.angle)
 
         dx, dy = self.controls_turn[num_angle]
 
@@ -787,7 +802,7 @@ class Algorithm:
             action, loss = self.simulation_one_step(k)
 
             # save historic
-            self.historic_zeta.append(self.agent.zeta.detach().numpy())
+            self.historic_zeta.append(self.agent.zeta)
             self.historic_actions.append(action)
             self.historic_losses.append(loss)
 
