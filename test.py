@@ -9,11 +9,21 @@ from utils import set_all_seeds
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
-# class TestEnvironnement(unittest.TestCase):
+class TestEnvironnement(unittest.TestCase):
 
-#     def test_upper(self):
-#         self.assertEqual('foo'.upper(), 'FOO')
-
+    def test_is_point_inside(self):
+        env = Environment()
+        
+        Points = [
+            (1.1, 1.1, True), # up right A
+            (0.9, 0.9, False), # down left A
+            (0.9, 5, False), # left B
+            (1.1, 4.9, True), # right down B
+        ]
+        
+        for (x, y, inside) in Points:
+            self.assertEqual(env.is_point_inside(x, y), inside)
+            
 
 
 
