@@ -24,6 +24,21 @@ class TestEnvironnement(unittest.TestCase):
         for (x, y, inside) in Points:
             self.assertEqual(env.is_point_inside(x, y), inside)
             
+    def test_is_segment_inside(self):
+        env = Environment()
+        
+        segments = [
+            # xa, ya, xb, yb,
+            (1.1, 1.1, 0.9, 0.9, False), # up right A - down left A
+            (0.9, 0.9, 1.1, 1.1, False), # down left A - up right A
+            (0.9, 0.9, 1.1, 4.9, False), # down left A - right down B
+            (1.1, 1.1, 1.1, 4.9, True), # up right A  - right down B
+            (1.1, 1.1, 1.1, 5.1, False), # up right A  - right up B
+        ]
+        
+        for (xa, ya, xb, yb, inside) in segments:
+            self.assertEqual(env.is_segment_inside(xa, xb, ya, yb), inside)
+            
 
 
 
