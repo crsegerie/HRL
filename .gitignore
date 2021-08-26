@@ -10,3 +10,4 @@ Self_Regulated_Agents_and_Continuous_Homeostatic_Reinforcement_Learning_boris_co
 *.pdf
 algorithm.py
 HRL.py.lprof
+.DS_Store
