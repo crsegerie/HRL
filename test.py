@@ -12,8 +12,8 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 class TestEnvironnement(unittest.TestCase):
 
-    def test_is_point_inside(self):
-        env = Environment()
+    def test_is_point_inside_medium(self):
+        env = Environment(difficulty="MEDIUM")
         
         Points = [
             (1.1, 1.1, True), # up right A
@@ -24,9 +24,23 @@ class TestEnvironnement(unittest.TestCase):
         
         for (x, y, inside) in Points:
             self.assertEqual(env.is_point_inside(x, y), inside)
+    
+    def test_is_point_inside_easy(self):
+        """EASY : 10x10 square environneemnt."""
+        env = Environment(difficulty="EASY")
+        
+        Points = [
+            (-1, 1, False), 
+            (1, 1, True), 
+            (9, 1, True), 
+            (11, 1, False),
+        ]
+        
+        for (x, y, inside) in Points:
+            self.assertEqual(env.is_point_inside(x, y), inside)
             
-    def test_is_segment_inside(self):
-        env = Environment()
+    def test_is_segment_inside_medium(self):
+        env = Environment(difficulty="MEDIUM")
         
         segments = [
             # xa, ya, xb, yb,
@@ -47,7 +61,7 @@ class TestHRL(unittest.TestCase):
         seed = 0
         set_all_seeds(seed)
 
-        env = Environment()
+        env = Environment(difficulty="MEDIUM")
         agent = Agent()
         net_J = Net_J()
         net_f = Net_f()

@@ -4,6 +4,7 @@ from matplotlib.patches import Circle
 import numpy as np
 
 from dataclasses import dataclass
+from utils import difficultyT
 
 
 @dataclass
@@ -17,9 +18,9 @@ class ResourceDC:
 
 
 class Environment:
-    def __init__(self):
+    def __init__(self, difficulty : difficultyT):
         # Simulation
-        self.coord_env = {
+        coord_env_medium = {
             'xa': 1, 'ya': 1,
             'xb': 1, 'yb': 5,
             'xc': 2, 'yc': 5,
@@ -38,6 +39,14 @@ class Environment:
             'xp': 6, 'yp': 2,
             'xq': 5, 'yq': 2,
             'xr': 5, 'yr': 1}
+        
+        coord_env_easy = {
+            'xa': 0, 'ya': 0,
+            'xb': 10, 'yb': 0,
+            'xc': 10, 'yc': 10,
+            'xd': 0, 'yd': 10}
+        
+        self.coord_env = coord_env_medium if difficulty == "MEDIUM" else coord_env_easy
 
         self.resources: List[ResourceDC] = [
             ResourceDC(x=1.5, y=4.25, r=0.3, color='red'),
