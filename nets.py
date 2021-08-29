@@ -27,7 +27,7 @@ class Net_J(nn.Module):
         x = self.dropout1(x)
         x = self.fc2(x)
         x = sigmoid(x)
-        x = self.dropout1(x)
+        x = self.dropout2(x)
         x = self.fc3(x)
         output = sigmoid(x)
         return output
@@ -69,6 +69,6 @@ class Net_f(nn.Module):
         x = self.dropout1(x)
         x = self.fc2(x)
         x = F.relu(x)
-        x = self.dropout1(x)
+        x = self.dropout2(x)
         output = self.fc3(x)
         return output
