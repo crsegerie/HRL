@@ -3,13 +3,12 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import numpy as np
 
-
 from dataclasses import dataclass
 
 
 @dataclass
 class ResourceDC:
-    """Resource representing a type of resource in the environmeet."""
+    """Resource representing a type of resource in the environment."""
 
     x: float
     y: float
@@ -134,7 +133,7 @@ class Environment:
                         if is_inter(inter, i):
                             return False
         else:
-            # xa = xb : usefull when the agent is place on a resource for example.
+            # xa = xb : usefull when the agent is placed on a resource for example.
             for i in range(0, len(lab) - 2, 2):
                 if coords[lab[i]] == coords[lab[i + 2]]:
                     if xa == coords[lab[i]]:
@@ -153,7 +152,7 @@ class Environment:
         return True
 
     def plot_resources(self, ax, scale: int, resources: List[int]=[0, 1, 2, 3]):
-        """Add on the axis the resources representing the resources."""
+        """Add circles representing the resources on the plot."""
         for c_i, resource in enumerate(self.resources):
             if c_i in resources:
                 x = resource.x * scale
@@ -198,20 +197,3 @@ class Environment:
         if save_fig:
             ax.savefig('environment.eps', format='eps')
 
-
-# #### TEST
-
-# env = Environment()
-
-# values = np.zeros((90, 60))
-# for i in range(90):  # x
-#     for j in range(60):  # y
-#         values[i, j] = 1*env.is_point_inside(i/10, j/10)
-
-# plt.imshow(values.T, cmap='cool', interpolation='nearest')
-# plt.gca().invert_yaxis()
-# plt.show()
-
-# assert env.is_segment_inside(1.5, 1.5, 1.5, 4.5)
-# assert env.is_segment_inside(1.5, 4.5, 1.5, 1.5)
-# assert not env.is_segment_inside(1.5, 6.5, 1.5, 1.5)

@@ -9,6 +9,7 @@ from utils import set_all_seeds
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
+
 class TestEnvironnement(unittest.TestCase):
 
     def test_is_point_inside(self):
@@ -40,8 +41,6 @@ class TestEnvironnement(unittest.TestCase):
             self.assertEqual(env.is_segment_inside(xa, xb, ya, yb), inside)
             
 
-
-
 class TestHRL(unittest.TestCase):
 
     def test_end_result(self):
@@ -66,3 +65,22 @@ class TestHRL(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+
+# #### TEST
+
+# env = Environment()
+
+# values = np.zeros((90, 60))
+# for i in range(90):  # x
+#     for j in range(60):  # y
+#         values[i, j] = 1*env.is_point_inside(i/10, j/10)
+
+# plt.imshow(values.T, cmap='cool', interpolation='nearest')
+# plt.gca().invert_yaxis()
+# plt.show()
+
+# assert env.is_segment_inside(1.5, 1.5, 1.5, 4.5)
+# assert env.is_segment_inside(1.5, 4.5, 1.5, 1.5)
+# assert not env.is_segment_inside(1.5, 6.5, 1.5, 1.5)
