@@ -1,3 +1,4 @@
+from utils import Difficulty
 from numpy.core.fromnumeric import shape
 import torch
 from math import pi
@@ -73,7 +74,7 @@ class Zeta:
 
 
 class Agent:
-    def __init__(self):
+    def __init__(self, difficulty : Difficulty):
         """Initialize the Agent.
 
         ...

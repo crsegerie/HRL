@@ -4,7 +4,7 @@ from matplotlib.patches import Circle
 import numpy as np
 
 from dataclasses import dataclass
-from utils import difficultyT
+from utils import Difficulty
 
 
 @dataclass
@@ -18,9 +18,9 @@ class ResourceDC:
 
 
 class Environment:
-    def __init__(self, difficulty : difficultyT):
+    def __init__(self, difficulty : Difficulty):
         # Simulation
-        coord_env_medium = {
+        coord_env_polygon = {
             'xa': 1, 'ya': 1,
             'xb': 1, 'yb': 5,
             'xc': 2, 'yc': 5,
@@ -40,20 +40,28 @@ class Environment:
             'xq': 5, 'yq': 2,
             'xr': 5, 'yr': 1}
         
-        coord_env_easy = {
+        coord_env_square = {
             'xa': 0, 'ya': 0,
             'xb': 10, 'yb': 0,
             'xc': 10, 'yc': 10,
             'xd': 0, 'yd': 10}
         
-        self.coord_env = coord_env_medium if difficulty == "MEDIUM" else coord_env_easy
+        self.coord_env = coord_env_polygon if difficulty.env == "polygon" else coord_env_square
+        
 
-        self.resources: List[ResourceDC] = [
+        four_resources: List[ResourceDC] = [
             ResourceDC(x=1.5, y=4.25, r=0.3, color='red'),
             ResourceDC(x=4.5, y=1.5, r=0.3, color='blue'),
             ResourceDC(x=8, y=5.5, r=0.3, color='orange'),
             ResourceDC(x=6.5, y=0.75, r=0.3, color='green'),
         ]
+
+        two_resources: List[ResourceDC] = [
+            ResourceDC(x=1.5, y=4.25, r=0.3, color='red'),
+            ResourceDC(x=4.5, y=1.5, r=0.3, color='blue'),
+        ]
+        
+        self.resources = two_resources if difficulty.n_resources == 2 else four_resources
 
     def is_point_inside(self, x: float, y: float):
         """Check if a point (x,y) is inside the polygon.

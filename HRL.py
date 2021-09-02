@@ -11,7 +11,7 @@ from agent import Agent
 from environment import Environment
 from algorithm import Algorithm
 from nets import Net_J, Net_f
-from utils import set_all_seeds, difficultyT
+from utils import set_all_seeds, Difficulty
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -21,16 +21,10 @@ def main():
     seed = 0
     set_all_seeds(seed)
     
-    difficulty : difficultyT = "EASY"
-    """ 
-    VERY EASY : rectangle environnement, only 2 resources.
-    EASY : rectangle environnement, 4 resources.
-    MEDIUM : complex shape environnement, 4 resources
-    """
-
+    difficulty = Difficulty(level="MEDIUM")
 
     env = Environment(difficulty)
-    agent = Agent()
+    agent = Agent(difficulty)
     net_J = Net_J()
     net_f = Net_f()
     algo = Algorithm(env, agent, net_J, net_f)

@@ -5,7 +5,7 @@ from agent import Agent
 from environment import Environment
 from algorithm import Algorithm
 from nets import Net_J, Net_f
-from utils import set_all_seeds
+from utils import set_all_seeds, Difficulty
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -13,47 +13,51 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 class TestEnvironnement(unittest.TestCase):
 
     def test_is_point_inside_medium(self):
-        env = Environment(difficulty="MEDIUM")
-        
+        difficulty = Difficulty(level="MEDIUM")
+        env = Environment(difficulty)
+
         Points = [
-            (1.1, 1.1, True), # up right A
-            (0.9, 0.9, False), # down left A
-            (0.9, 5, False), # left B
-            (1.1, 4.9, True), # right down B
+            (1.1, 1.1, True),  # up right A
+            (0.9, 0.9, False),  # down left A
+            (0.9, 5, False),  # left B
+            (1.1, 4.9, True),  # right down B
         ]
-        
+
         for (x, y, inside) in Points:
             self.assertEqual(env.is_point_inside(x, y), inside)
-    
+
     def test_is_point_inside_easy(self):
         """EASY : 10x10 square environneemnt."""
-        env = Environment(difficulty="EASY")
-        
+        difficulty = Difficulty(level="EASY")
+        env = Environment(difficulty)
+
         Points = [
-            (-1, 1, False), 
-            (1, 1, True), 
-            (9, 1, True), 
+            (-1, 1, False),
+            (1, 1, True),
+            (9, 1, True),
             (11, 1, False),
         ]
-        
+
         for (x, y, inside) in Points:
             self.assertEqual(env.is_point_inside(x, y), inside)
-            
+
     def test_is_segment_inside_medium(self):
-        env = Environment(difficulty="MEDIUM")
-        
+        difficulty = Difficulty(level="MEDIUM")
+
+        env = Environment(difficulty)
+
         segments = [
             # xa, ya, xb, yb,
-            (1.1, 1.1, 0.9, 0.9, False), # up right A - down left A
-            (0.9, 0.9, 1.1, 1.1, False), # down left A - up right A
-            (0.9, 0.9, 1.1, 4.9, False), # down left A - right down B
-            (1.1, 1.1, 1.1, 4.9, True), # up right A  - right down B
-            (1.1, 1.1, 1.1, 5.1, False), # up right A  - right up B
+            (1.1, 1.1, 0.9, 0.9, False),  # up right A - down left A
+            (0.9, 0.9, 1.1, 1.1, False),  # down left A - up right A
+            (0.9, 0.9, 1.1, 4.9, False),  # down left A - right down B
+            (1.1, 1.1, 1.1, 4.9, True),  # up right A  - right down B
+            (1.1, 1.1, 1.1, 5.1, False),  # up right A  - right up B
         ]
-        
+
         for (xa, ya, xb, yb, inside) in segments:
             self.assertEqual(env.is_segment_inside(xa, xb, ya, yb), inside)
-            
+
 
 class TestHRL(unittest.TestCase):
 
@@ -61,8 +65,9 @@ class TestHRL(unittest.TestCase):
         seed = 0
         set_all_seeds(seed)
 
-        env = Environment(difficulty="MEDIUM")
-        agent = Agent()
+        difficulty = Difficulty(level="MEDIUM")
+        env = Environment(difficulty)
+        agent = Agent(difficulty)
         net_J = Net_J()
         net_f = Net_f()
         algo = Algorithm(env, agent, net_J, net_f)
@@ -79,7 +84,6 @@ class TestHRL(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
 
 
 # #### TEST
