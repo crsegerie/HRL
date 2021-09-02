@@ -212,7 +212,7 @@ class Algorithm:
             return dist < radius
 
         def check_resource(resource_i: int):
-            index_resource = 4 + resource_i
+            index_resource = 5 + resource_i
             if zeta.resource(resource_i) >= self.constraints[index_resource]:
                 possible_actions[index_resource] = False
             if not is_near_ressource(resource_i):
