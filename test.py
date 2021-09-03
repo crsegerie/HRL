@@ -70,7 +70,7 @@ class TestHRL(unittest.TestCase):
         agent = Agent(difficulty)
         net_J = Net_J()
         net_f = Net_f()
-        algo = Algorithm(env, agent, net_J, net_f)
+        algo = Algorithm(difficulty, env, agent, net_J, net_f)
 
         algo.simulation()
         _zeta_tensor = algo.agent.zeta._zeta_tensor

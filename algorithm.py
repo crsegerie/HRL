@@ -1,4 +1,5 @@
 from typing import Any, Dict, Literal, List
+from utils import Difficulty
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ from nets import Net_J, Net_f
 
 
 class Algorithm:
-    def __init__(self, env: Environment, agent: Agent, net_J: Net_J, net_f: Net_f):
+    def __init__(self, difficulty: Difficulty, env: Environment, agent: Agent, net_J: Net_J, net_f: Net_f):
 
         # ALGOS METAPARAMETERS ##################################
 
@@ -133,7 +134,8 @@ class Algorithm:
         self.net_J = net_J
         self.net_f = net_f
 
-        # UTILS ########################################""
+        # UTILS ############################################
+        self.difficulty = difficulty
         self.optimizer_J = torch.optim.Adam(
             self.net_J.parameters(), lr=self.learning_rate)
         self.optimizer_f = torch.optim.Adam(
@@ -268,15 +270,12 @@ class Algorithm:
         RETURNS:
         -------
         new_zeta. The updated zeta."""
-        assert len(control) == 6
-        assert len(self.agent.zeta.homeostatic) == 6
-
         x = self.agent.zeta.homeostatic + self.agent.x_star
         rate = self.agent.coef_herzt + control
         new_x = x * torch.exp(rate * duration)
         new_zeta = self.agent.zeta._zeta_tensor.clone()
-        new_zeta[:6] = new_x - self.agent.x_star
-        return new_zeta
+        new_zeta[:self.agent.zeta.n_homeostatic] = new_x - self.agent.x_star
+        return new_zeta 
 
     def going_and_get_resource(self, resource_i: int) -> ZetaTensorT:
         """Return the new state associated with the special action a going 
@@ -301,6 +300,7 @@ class Algorithm:
                            (agent_y - resource_y)**2)
 
         if distance != 0:
+            # TODO: 
             # If the agent is at a distance d from the resource,
             # it will first need to walk
             # to consume it. Thus, we integrate the differential
@@ -308,11 +308,12 @@ class Algorithm:
             time_to_walk = distance * self.time_step / self.walking_speed
 
             angle = int(self.agent.zeta.angle)
-            control = self.actions_controls["walking"][angle][:6]
+            control = self.actions_controls["walking"][angle][:self.agent.zeta.n_homeostatic]
             new_zeta_tensor = self.integrate_multiple_steps(
                 time_to_walk, control)
-            new_zeta_tensor[6] = self.env.resources[resource_i].x
-            new_zeta_tensor[7] = self.env.resources[resource_i].y
+            
+            new_zeta_tensor[self.agent.zeta.x_indice] = self.env.resources[resource_i].x
+            new_zeta_tensor[self.agent.zeta.y_indice] = self.env.resources[resource_i].y
             return new_zeta_tensor
         else:
             # If the agent is already on the resource, then consuming it is done instantly
@@ -354,7 +355,7 @@ class Algorithm:
         --------
         The new states.
         """
-        new_zeta = Zeta()
+        new_zeta = Zeta(self.difficulty)
 
         # 4 is sleeping
         if a == 4:
@@ -461,7 +462,7 @@ class Algorithm:
         # requires_grad of the parameters you want to freeze to False.
         f = self.net_f.forward(zeta_u).detach()
         new_zeta_tensor = _zeta_tensor + self.time_step * f
-        new_zeta = Zeta()
+        new_zeta = Zeta(self.difficulty)
         new_zeta._zeta_tensor = new_zeta_tensor
         instant_reward = self.agent.drive(new_zeta)
         grad_ = torch.autograd.grad(
@@ -548,7 +549,7 @@ class Algorithm:
         # and long-term improvements are in the same direction)
 
         # futur drive = d(\zeta_t, u_a) = 0.9
-        new_zeta = Zeta()
+        new_zeta = Zeta(self.difficulty)
         new_zeta._zeta_tensor = _new_zeta
         instant_drive = self.agent.drive(new_zeta)
 
