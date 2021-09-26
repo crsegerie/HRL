@@ -7,6 +7,7 @@ from algorithm import Algorithm
 from nets import Net_J, Net_f
 from utils import set_all_seeds, Difficulty
 import os
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
@@ -68,8 +69,8 @@ class TestHRL(unittest.TestCase):
         difficulty = Difficulty(level="MEDIUM")
         env = Environment(difficulty)
         agent = Agent(difficulty)
-        net_J = Net_J()
-        net_f = Net_f()
+        net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=difficulty.n_actions)
+        net_J = Net_J(shape_zeta=agent.zeta.shape)
         algo = Algorithm(difficulty, env, agent, net_J, net_f)
 
         algo.simulation()

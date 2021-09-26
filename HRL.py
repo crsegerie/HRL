@@ -21,14 +21,15 @@ def main():
     seed = 0
     set_all_seeds(seed)
     
-    difficulty = Difficulty(level="MEDIUM")
+    difficulty = Difficulty(level="EASY")
 
     env = Environment(difficulty)
     agent = Agent(difficulty)
-    net_J = Net_J()
-    net_f = Net_f()
+    net_J = Net_J(shape_zeta=agent.zeta.shape)
+    
+    # TODO: actions should be in another Class.
+    net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=difficulty.n_actions)
     algo = Algorithm(difficulty, env, agent, net_J, net_f)
-
 
     algo.simulation()
 

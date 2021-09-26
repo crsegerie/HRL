@@ -18,11 +18,17 @@ class Difficulty:
     def __init__(self, level: Literal["EASY", "MEDIUM"]):
 
         if level == "EASY":
-            self.n_resources: Literal[2, 4] = 4
+            self.n_resources: Literal[2, 4] = 2
 
             self.env: Literal["polygon", "square"] = "square"
+            
+            # TODO: ugly
+            self.n_actions = 10
 
         if level == "MEDIUM":
             self.n_resources: Literal[2, 4] = 4
 
             self.env: Literal["polygon", "square"] = "polygon"
+            
+            # TODO: ugly
+            self.n_actions = 14

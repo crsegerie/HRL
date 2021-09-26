@@ -62,6 +62,9 @@ class Environment:
         ]
         
         self.resources = two_resources if difficulty.n_resources == 2 else four_resources
+        
+        self.width = 9 if difficulty.env == "polygon" else 10
+        self.height = 6 if difficulty.env == "polygon" else 10
 
     def is_point_inside(self, x: float, y: float):
         """Check if a point (x,y) is inside the polygon.
