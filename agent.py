@@ -1,79 +1,79 @@
-from numpy.core.fromnumeric import shape
+from utils import Difficulty
 import torch
 from math import pi
 
-ZetaTensorT = type(torch.Tensor(shape(9)))
-ControlT = type(torch.Tensor(shape(9)))
-HomeostaticT = type(torch.Tensor(shape(6)))
-
+ZetaTensorT = type(torch.Tensor())  # 8
+ControlT = type(torch.Tensor())  # 8
+HomeostaticT = type(torch.Tensor())  # 6
 
 
 class Zeta:
     """Internal and external state of the agent."""
 
-    def __init__(self, x = None, y = None) -> None:
+    def __init__(self, difficulty: Difficulty, x=None, y=None) -> None:
         """zeta : torch.tensor
+        
+        homeostatic:
         zeta[0] : resource 0
         zeta[1] : resource 1
         zeta[2] : resource 2
         zeta[3] : resource 3
         zeta[4] : muscular energy (muscular resource)
         zeta[5] : aware energy (aware resource) : low if sleepy.
+        
+        not homeostatic (position)
         zeta[6] : x-coordinate
         zeta[7] : y-coordinate
-        zeta[8] : angle
 
         Be aware that zeta[:6] is homeostatic and that zeta[6:] aren't.    
         """
-        self._zeta_tensor : ZetaTensorT = torch.zeros(9)
-        if x and y:
-            self._zeta_tensor[6] = x
-            self._zeta_tensor[7] = y
-        self.shape = 9
-    
+        self.difficulty: Difficulty = difficulty
 
-    def resource(self, resource_i : int):
-        assert resource_i < 4
+        self.n_homeostatic = self.difficulty.n_resources + 2 # muscle, aware
+        self.shape = self.n_homeostatic + 2 # for both coordinates x, y
+        self._zeta_tensor: ZetaTensorT = torch.zeros(self.shape)
+        self.x_indice = self.n_homeostatic + 0
+        self.y_indice = self.n_homeostatic + 1
+        self.last_direction = "none"
+
+        if x and y:
+            self._zeta_tensor[self.n_homeostatic + 0] = x
+            self._zeta_tensor[self.n_homeostatic + 1] = y
+            
+
+    def resource(self, resource_i: int):
+        assert resource_i < self.difficulty.n_resources
         return self._zeta_tensor[resource_i]
-    
-    
+
     @property
     def muscular_energy(self):
-        return self._zeta_tensor[4]
+        return self._zeta_tensor[self.difficulty.n_resources + 0]
 
     @property
     def aware_energy(self):
-        return self._zeta_tensor[5]
-    
-    @property
-    def x(self):
-        return self._zeta_tensor[6]
-    
-    @property
-    def y(self):
-        return self._zeta_tensor[7]
+        return self._zeta_tensor[self.difficulty.n_resources + 1]
 
     @property
-    def angle(self):
-        return self._zeta_tensor[8]
-    
-    @angle.setter
-    def angle(self, value):
-        self._zeta_tensor[8] = value
+    def x(self):
+        return self._zeta_tensor[self.n_homeostatic + 0]
+
+    @property
+    def y(self):
+        return self._zeta_tensor[self.n_homeostatic + 1]
 
     @property
     def homeostatic(self):
         """Homeostatic level is regulated to a set point."""
-        return self._zeta_tensor[:6]
+        return self._zeta_tensor[:self.n_homeostatic]
 
     @property
     def position(self):
         """Position coordinates are regulated to a set point."""
-        return self._zeta_tensor[6:]
+        return self._zeta_tensor[self.n_homeostatic:]
 
 
 class Agent:
-    def __init__(self):
+    def __init__(self, difficulty: Difficulty):
         """Initialize the Agent.
 
         ...
@@ -86,8 +86,6 @@ class Agent:
             homogeneus to the inverse of a second. For example c = (-0.1, ...)
             says that the half-life (like a radioactive element) of the first
             ressource is equal to 10 seconds.
-        angle_visual_field : float
-            in radiant. Not implemented.
         zeta: state of the agent.
 
         """
@@ -95,22 +93,22 @@ class Agent:
 
         # homeostatic point
         # Resources 1, 2, 3, 4 and muscular fatigues and sleep fatigue
-        self.x_star: HomeostaticT = torch.Tensor([1, 2, 3, 4, 0, 0])
+        x_star_4_resources = torch.Tensor([1, 2, 3, 4, 0, 0])
+        x_star_2_resources = torch.Tensor([1, 2, 0, 0])
+
+        self.x_star: HomeostaticT = x_star_4_resources \
+            if difficulty.n_resources == 4 else x_star_2_resources
 
         # parameters of the function f
-        # same + x, y, and angle coordinates
-        self.coef_herzt: HomeostaticT = torch.Tensor(
-            [-0.05, -0.05, -0.05, -0.05, -0.008, 0.0005])
-
-        # Not used currently
-        self.angle_visual_field = pi / 10
+        # same + x, y
+        self.coef_hertz: HomeostaticT = torch.Tensor(
+            [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
 
         # UTILS ##################################################
-        
+
         # Setting initial position
         # Btw, at the begining the agent is starving and exhausted...
-        self.zeta: Zeta = Zeta(x=3, y=2)
-
+        self.zeta: Zeta = Zeta(difficulty=difficulty, x=3, y=2)
 
     def dynamics(self, zeta: Zeta, u: ControlT):
         """
@@ -127,13 +125,13 @@ class Agent:
         # Those first coordinate are homeostatic, and with a null control,
         # zeta tends to zero.
 
-        f[:6] = self.coef_herzt * (zeta.homeostatic + self.x_star) + \
-            u[:6] * (zeta.homeostatic + self.x_star)
+        f[:zeta.n_homeostatic] = self.coef_hertz * (zeta.homeostatic + self.x_star) + \
+            u[:zeta.n_homeostatic] * (zeta.homeostatic + self.x_star)
 
         # Those coordinates are not homeostatic : they represent the x-speed,
         # y-speed, and angular-speed.
         # The agent can choose himself his speed.
-        f[6:9] = u[6:9]
+        f[zeta.n_homeostatic:] = u[zeta.n_homeostatic:]
         return f
 
     def drive(self, zeta: Zeta, epsilon: float = 0.001):

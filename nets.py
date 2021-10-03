@@ -10,11 +10,11 @@ class Net_J(nn.Module):
     The agents wants to minimize this drive.
     """
 
-    def __init__(self):
+    def __init__(self, shape_zeta:int):
         super(Net_J, self).__init__()
         n_neurons = 128
         dropout_rate = 0.15
-        self.fc1 = nn.Linear(9, n_neurons)
+        self.fc1 = nn.Linear(shape_zeta, n_neurons)
         self.dropout1 = nn.Dropout(dropout_rate)
         self.fc2 = nn.Linear(n_neurons, n_neurons)
         self.dropout2 = nn.Dropout(dropout_rate)
@@ -45,7 +45,7 @@ class Net_f(nn.Module):
     zeta = internal + external state
     """
 
-    def __init__(self):
+    def __init__(self, shape_zeta:int, n_tot_actions:int) :
         super(Net_f, self).__init__()
         n_neurons = 128
         dropout_rate = 0.15
@@ -56,11 +56,11 @@ class Net_f(nn.Module):
         # TODO: zeta is continuous and the one-hot-encoded control
         # is kind of discrete.
         # We could preprocess zeta before concatenating with the control.
-        self.fc1 = nn.Linear(9 + 14, n_neurons)
+        self.fc1 = nn.Linear(shape_zeta+ n_tot_actions, n_neurons)
         self.dropout1 = nn.Dropout(dropout_rate)
         self.fc2 = nn.Linear(n_neurons, n_neurons)
         self.dropout2 = nn.Dropout(dropout_rate)
-        self.fc3 = nn.Linear(n_neurons, 9)
+        self.fc3 = nn.Linear(n_neurons, shape_zeta)
 
     def forward(self, x):
         """Return a speed homogeneous to zeta."""
