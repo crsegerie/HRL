@@ -8,7 +8,6 @@ NIPS-2011-a-reinforcement-learning-theory-for-homeostatic-regulation-Paper.pdf
 *.pyc
 Self_Regulated_Agents_and_Continuous_Homeostatic_Reinforcement_Learning_boris_comments_29_july_answer charbel.pdf
 *.pdf
-algorithm.py
 HRL.py.lprof
 .DS_Store
 __pycache__/
