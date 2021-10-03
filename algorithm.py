@@ -41,6 +41,7 @@ class Algorithm:
 
         # We discretized the angles in order no to spin without moving
         # The controls for walking and running for each angle is pre-computed
+        # TODO:: Les angles vont degager : chaque angle est une ction différente
         num_pos_angles = 5
         self.controls_turn = [[np.cos(2 * np.pi / num_pos_angles * i),
                                np.sin(2 * np.pi / num_pos_angles * i)]
@@ -59,6 +60,8 @@ class Algorithm:
                                                self.controls_turn[i][1],  # y
                                                0.]  # angle
                            for i in range(num_pos_angles)]
+        
+        # TODO:: On enleve le running
         self.running_speed = 0.3
         control_running = [[0.]*n_resources + [0.05, 0.,
                                                self.running_speed *
@@ -80,6 +83,7 @@ class Algorithm:
             "walking": control_walking,  # -> constraints[0...]
             "running": control_running,  # -> constraints[1]
             # etc...
+            # TODO:: Turning trigo exit
             "turning trigo": [0.]*n_resources + [0.001, 0., 0., 0., 0.],
             "turning antitrigo": [0.]*n_resources + [0.001, 0., 0., 0., 0.],
             "sleeping": [0.]*n_resources + [0., -0.001, 0., 0., 0.],
@@ -110,6 +114,7 @@ class Algorithm:
         # - and sleep tiredness (S)
         # - max_food_in_the_stomach (F)
         #                   M, M, M, M, S,    F*n_resources     (*)
+        # TODO:: dans pandas
         self.constraints = [6, 3, 6, 6, 1] + [8]*n_resources + [None]
         # (*) There is not any constraint when you do anything.
 
@@ -292,7 +297,7 @@ class Algorithm:
         -------
         new_zeta. The updated zeta."""
         x = self.agent.zeta.homeostatic + self.agent.x_star
-        rate = self.agent.coef_herzt + control
+        rate = self.agent.coef_hertz + control
         new_x = x * torch.exp(rate * duration)
         new_zeta = self.agent.zeta._zeta_tensor.clone()
         new_zeta[:self.agent.zeta.n_homeostatic] = new_x - self.agent.x_star

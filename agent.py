@@ -111,7 +111,7 @@ class Agent:
 
         # parameters of the function f
         # same + x, y, and angle coordinates
-        self.coef_herzt: HomeostaticT = torch.Tensor(
+        self.coef_hertz: HomeostaticT = torch.Tensor(
             [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
 
         # Not used currently
@@ -138,7 +138,7 @@ class Agent:
         # Those first coordinate are homeostatic, and with a null control,
         # zeta tends to zero.
 
-        f[:zeta.n_homeostatic] = self.coef_herzt * (zeta.homeostatic + self.x_star) + \
+        f[:zeta.n_homeostatic] = self.coef_hertz * (zeta.homeostatic + self.x_star) + \
             u[:zeta.n_homeostatic] * (zeta.homeostatic + self.x_star)
 
         # Those coordinates are not homeostatic : they represent the x-speed,
