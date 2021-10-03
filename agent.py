@@ -34,6 +34,7 @@ class Zeta:
         self._zeta_tensor: ZetaTensorT = torch.zeros(self.shape)
         self.x_indice = self.n_homeostatic + 0
         self.y_indice = self.n_homeostatic + 1
+        self.last_direction = "none"
 
         if x and y:
             self._zeta_tensor[self.n_homeostatic + 0] = x

@@ -39,28 +39,10 @@ class Algorithm:
 
         # ACTIONS METAPARAMETERS ##################################
 
-        # We discretized the angles in order no to spin without moving
-        # The controls for walking and running for each angle is pre-computed
-        # TODO:: Les angles vont degager : chaque angle est une ction différente
-        num_pos_angles = 5
-        self.controls_turn = [[np.cos(2 * np.pi / num_pos_angles * i),
-                               np.sin(2 * np.pi / num_pos_angles * i)]
-                              for i in range(num_pos_angles)]
-        # self.controls_turn = torch.Tensor(self.controls_turn)
-
         self.walking_speed = 0.1
 
         n_resources = difficulty.n_resources
         n_shape = agent.zeta.shape
-
-        control_walking = [[0.]*n_resources + [0.01, 0.,  # homeostatic resources
-                                               self.walking_speed * \
-                                               self.controls_turn[i][0],  # x
-                                               self.walking_speed * \
-                                               self.controls_turn[i][1],  # y
-                                               0.]  # angle
-                           for i in range(num_pos_angles)]
-        
         
         # a list mapping the action to a control.
         # For each action, there is a control verifying for example that
@@ -71,12 +53,11 @@ class Algorithm:
         # not above 3.
 
         self.actions_controls: Dict[str, Any] = {
-            "walking": control_walking,  # -> constraints[0...]
-            # etc...
-            # TODO:: Turning trigo exit
-            "turning trigo": [0.]*n_resources + [0.001, 0., 0., 0., 0.],
-            "turning antitrigo": [0.]*n_resources + [0.001, 0., 0., 0., 0.],
-            "sleeping": [0.]*n_resources + [0., -0.001, 0., 0., 0.],
+            "walking_right": [0.]*n_resources + [0.01, 0., self.walking_speed, 0.], 
+            "walking_left": [0.]*n_resources + [0.01, 0., -self.walking_speed, 0.], 
+            "walking_up": [0.]*n_resources + [0.01, 0., 0., self.walking_speed], 
+            "walking_down": [0.]*n_resources + [0.01, 0., 0., -self.walking_speed], 
+            "sleeping": [0.]*n_resources + [0., -0.001, 0., 0.],
         }
 
         # Simply eating
@@ -103,9 +84,10 @@ class Algorithm:
         # - muscular tiredness (M)
         # - and sleep tiredness (S)
         # - max_food_in_the_stomach (F)
+        #               walkR  L  U  D Sleep, eat
         #                   M, M, M, M, S,    F*n_resources     (*)
         # TODO:: dans pandas
-        self.constraints = [6, 6, 6, 1] + [8]*n_resources + [None]
+        self.constraints = [6, 6, 6, 6, 1] + [8]*n_resources + [None]
         # (*) There is not any constraint when you do anything.
 
         # An agent cannot do micro sleep.
@@ -169,27 +151,24 @@ class Algorithm:
         # If the agent is too tired in his muscle
         if zeta.muscular_energy >= self.constraints[0]:
             # walking is no more possible
-            possible_actions[self.inv_meaning_actions["walking"]] = False
+            possible_actions[self.inv_meaning_actions["walking_right"]] = False
+            possible_actions[self.inv_meaning_actions["walking_left"]] = False
+            possible_actions[self.inv_meaning_actions["walking_up"]] = False
+            possible_actions[self.inv_meaning_actions["walking_down"]] = False
 
         # He cannot escape the environment when walking.
         # TODO: zeta_meaning["x"] = 6
         # TODO: x_indice = 6
-        angle = int(zeta.angle)
-        x_walk = zeta.x + self.time_step * \
-            self.actions_controls["walking"][angle][self.agent.zeta.x_indice]
-        y_walk = zeta.y + self.time_step * \
-            self.actions_controls["walking"][angle][self.agent.zeta.y_indice]
-        x_walk, y_walk = float(x_walk), float(y_walk)
-        if not self.env.is_point_inside(x_walk, y_walk):
-            possible_actions[self.inv_meaning_actions["walking"]] = False
+        str_walkings = ["walking_up", "walking_down", "walking_right", "walking_left"]
+        for str_walking in str_walkings:
+            x_walk = zeta.x + self.time_step * \
+                self.actions_controls[str_walking][self.agent.zeta.x_indice]
+            y_walk = zeta.y + self.time_step * \
+                self.actions_controls[str_walking][self.agent.zeta.y_indice]
+            x_walk, y_walk = float(x_walk), float(y_walk)
+            if not self.env.is_point_inside(x_walk, y_walk):
+                possible_actions[self.inv_meaning_actions[str_walking]] = False
 
-        # He cannot rotate trigonometrically if too tired.
-        if zeta.muscular_energy >= self.constraints[self.inv_meaning_actions["turning trigo"]]:
-            possible_actions[self.inv_meaning_actions["turning trigo"]] = False
-
-        # He cannot rotate non-trigonometrically if too tired.
-        if zeta.muscular_energy >= self.constraints[self.inv_meaning_actions["turning antitrigo"]]:
-            possible_actions[self.inv_meaning_actions["turning antitrigo"]] = False
 
         # The agent cannot sleep if he is not enouth tired.
         if zeta.aware_energy <= self.constraints[self.inv_meaning_actions["sleeping"]]:
@@ -313,9 +292,11 @@ class Algorithm:
         # to consume it. Thus, we integrate the differential
         # equation of its internal state during this time
         time_to_walk = distance * self.time_step / self.walking_speed
-
-        angle = int(self.agent.zeta.angle)
-        control = self.actions_controls["walking"][angle][:self.agent.zeta.n_homeostatic]
+        
+        # We take only homeostatic part of the control
+        # So the direction does not matter here
+        # TODO: LI norm
+        control = self.actions_controls["walking_up"][:self.agent.zeta.n_homeostatic]
         new_zeta_tensor = self.integrate_multiple_steps(
             time_to_walk, control)
 
@@ -331,15 +312,15 @@ class Algorithm:
         ----------
         a: action.
         actions = [
-            0# walking
-            1# running
-            2# turning an angle to the left
-            3# turning an angle to the right
+            0# walking right
+            1# walking left
+            2# walking up
+            3# walking down
             4# sleeping
-            5# get resource 0
-            6# get resource 1
-            7# get resource 2
-            8# get resource 3
+            5# eat 0
+            6# eat 1
+            7# eat 2
+            8# eat 3
             9# not doing anything
         ]
 
@@ -376,27 +357,12 @@ class Algorithm:
         # Other actions: elementary actions
         else:
             u = torch.zeros(self.agent.zeta.shape)
-            angle = int(self.agent.zeta.angle)
-
             a_meaning = list(self.actions_controls.keys())[a]
-            if a_meaning == "walking":
-                u = self.actions_controls["walking"][angle]
-            else:
-                u = self.actions_controls[a_meaning]
+            u = self.actions_controls[a_meaning]
 
             # Euler method to calculate the new zeta.
             new_zeta._zeta_tensor = self.euler_method(u)
 
-            # If the agent is turning its angle
-            # Not in euler because discretized.
-            if a == 2:
-                new_zeta.angle += 1
-            elif a == 3:
-                new_zeta.angle -= 1
-            if new_zeta.angle == len(self.actions_controls["walking"]):
-                new_zeta.angle = 0
-            elif new_zeta.angle == -1:
-                new_zeta.angle = len(self.actions_controls["walking"]) - 1
 
         return new_zeta._zeta_tensor
 
@@ -518,6 +484,10 @@ class Algorithm:
         zeta_u[len(_zeta) + action] = 1
 
         _new_zeta = self.new_state(action)  # actual choosen new_zeta
+        
+        if self.meaning_actions[action] in ["walking_right", "walking_up", "walking_down", "walking_left"]:
+            self.agent.zeta.last_direction = self.meaning_actions[action]
+        
 
         coeff = self.asym_coeff
         # set of big actions leading directly to the resources and 4 is for sleeping
@@ -636,7 +606,7 @@ class Algorithm:
                     # but one resources varies alongside with the coordinates.
                     # No muscular nor energic fatigues.
                     zeta = torch.Tensor(
-                        [0.] * self.difficulty.n_resources + [0., 0., i/scale, j/scale, 0.])
+                        [0.] * self.difficulty.n_resources + [0., 0., i/scale, j/scale])
                     zeta[resource_id] = -self.agent.x_star[resource_id]
                     values[i, j] = self.net_J(zeta).detach().numpy()
 
@@ -669,7 +639,6 @@ class Algorithm:
             "aware energy",
             "x",
             "y",
-            "angle",
         ]
 
         historic_zeta_tensor = [zeta._zeta_tensor.detach(
@@ -711,7 +680,7 @@ class Algorithm:
             f"{self.N_rolling} frames)")
 
     def plot_position(self, ax, zeta: Zeta):
-        """Plot the position with an arrow.
+        """Plot the position.
 
         Parameters:
         -----------
@@ -727,14 +696,21 @@ class Algorithm:
         x = zeta.x
         y = zeta.y
 
-        num_angle = int(zeta.angle)
-
-        dx, dy = self.controls_turn[num_angle]
+        dx, dy = 0, 0
+        if self.agent.zeta.last_direction == "walking_right":
+            dx, dy = 1, 0
+        if self.agent.zeta.last_direction == "walking_left":
+            dx, dy = -1, 0
+        if self.agent.zeta.last_direction == "walking_up":
+            dx, dy = 0, 1
+        if self.agent.zeta.last_direction == "walking_down":
+            dx, dy = 0, -1
+            
 
         alpha = 0.5
 
         ax.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
-        ax.set_title("Position and orientation of the agent")
+        ax.set_title("Position of the agent.")
 
     def plot(self, frame: int,  scale=5):
         """Plot the position, angle and the ressources of the agent.
