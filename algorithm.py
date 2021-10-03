@@ -169,6 +169,7 @@ class Algorithm:
         """
         zeta = self.agent.zeta
 
+        # TODO:: boucle sur pandas
         # There are 4 more possible actions:
         # The 4 last actions correspond to going direcly to each of the
         # 4 ressources if possible.
@@ -288,7 +289,7 @@ class Algorithm:
 
         PARAMETER:
         ----------
-        duration :
+        duration:
             duration of time to integrate over.
         control:
             index of the action.
@@ -325,29 +326,29 @@ class Algorithm:
         distance = np.sqrt((agent_x - resource_x)**2 +
                            (agent_y - resource_y)**2)
 
-        if distance != 0:
-            # TODO:
-            # If the agent is at a distance d from the resource,
-            # it will first need to walk
-            # to consume it. Thus, we integrate the differential
-            # equation of its internal state during this time
-            time_to_walk = distance * self.time_step / self.walking_speed
-
-            angle = int(self.agent.zeta.angle)
-            control = self.actions_controls["walking"][angle][:self.agent.zeta.n_homeostatic]
-            new_zeta_tensor = self.integrate_multiple_steps(
-                time_to_walk, control)
-
-            new_zeta_tensor[self.agent.zeta.x_indice] = self.env.resources[resource_i].x
-            new_zeta_tensor[self.agent.zeta.y_indice] = self.env.resources[resource_i].y
-            return new_zeta_tensor
-        else:
+        if distance == 0:
             # If the agent is already on the resource, then consuming it is done instantly
             u = self.actions_controls["not doing anything"]
 
             self.agent.zeta._zeta_tensor = self.euler_method(u)
 
             return new_zeta_tensor
+
+        # If the agent is at a distance d from the resource,
+        # it will first need to walk
+        # to consume it. Thus, we integrate the differential
+        # equation of its internal state during this time
+        time_to_walk = distance * self.time_step / self.walking_speed
+
+        angle = int(self.agent.zeta.angle)
+        control = self.actions_controls["walking"][angle][:self.agent.zeta.n_homeostatic]
+        new_zeta_tensor = self.integrate_multiple_steps(
+            time_to_walk, control)
+
+        new_zeta_tensor[self.agent.zeta.x_indice] = self.env.resources[resource_i].x
+        new_zeta_tensor[self.agent.zeta.y_indice] = self.env.resources[resource_i].y
+        return new_zeta_tensor
+            
 
     def new_state(self, a: int) -> ZetaTensorT:
         """Return the new state after an action is taken.
