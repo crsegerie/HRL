@@ -23,7 +23,7 @@ class Difficulty:
             self.env: Literal["polygon", "square"] = "square"
             
             # TODO: ugly
-            self.n_actions = 10
+            self.n_actions = 11
 
         if level == "MEDIUM":
             self.n_resources: Literal[2, 4] = 4
@@ -31,4 +31,4 @@ class Difficulty:
             self.env: Literal["polygon", "square"] = "polygon"
             
             # TODO: ugly
-            self.n_actions = 14
+            self.n_actions = 15

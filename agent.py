@@ -2,8 +2,8 @@ from utils import Difficulty
 import torch
 from math import pi
 
-ZetaTensorT = type(torch.Tensor())  # 9
-ControlT = type(torch.Tensor())  # 9
+ZetaTensorT = type(torch.Tensor())  # 8
+ControlT = type(torch.Tensor())  # 8
 HomeostaticT = type(torch.Tensor())  # 6
 
 
@@ -24,14 +24,13 @@ class Zeta:
         not homeostatic (position)
         zeta[6] : x-coordinate
         zeta[7] : y-coordinate
-        zeta[8] : angle
 
         Be aware that zeta[:6] is homeostatic and that zeta[6:] aren't.    
         """
         self.difficulty: Difficulty = difficulty
 
         self.n_homeostatic = self.difficulty.n_resources + 2 # muscle, aware
-        self.shape = self.n_homeostatic + 3 # x, y, angle
+        self.shape = self.n_homeostatic + 2 # for both coordinates x, y
         self._zeta_tensor: ZetaTensorT = torch.zeros(self.shape)
         self.x_indice = self.n_homeostatic + 0
         self.y_indice = self.n_homeostatic + 1
@@ -62,14 +61,6 @@ class Zeta:
         return self._zeta_tensor[self.n_homeostatic + 1]
 
     @property
-    def angle(self):
-        return self._zeta_tensor[self.n_homeostatic + 2]
-
-    @angle.setter
-    def angle(self, value):
-        self._zeta_tensor[self.n_homeostatic + 2] = value
-
-    @property
     def homeostatic(self):
         """Homeostatic level is regulated to a set point."""
         return self._zeta_tensor[:self.n_homeostatic]
@@ -94,8 +85,6 @@ class Agent:
             homogeneus to the inverse of a second. For example c = (-0.1, ...)
             says that the half-life (like a radioactive element) of the first
             ressource is equal to 10 seconds.
-        angle_visual_field : float
-            in radiant. Not implemented.
         zeta: state of the agent.
 
         """
@@ -110,12 +99,9 @@ class Agent:
             if difficulty.n_resources == 4 else x_star_2_resources
 
         # parameters of the function f
-        # same + x, y, and angle coordinates
+        # same + x, y
         self.coef_hertz: HomeostaticT = torch.Tensor(
             [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
-
-        # Not used currently
-        self.angle_visual_field = pi / 10
 
         # UTILS ##################################################
 
