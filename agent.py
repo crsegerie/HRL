@@ -1,10 +1,9 @@
 from utils import Difficulty
 import torch
-from math import pi
 
-ZetaTensorT = type(torch.Tensor())  # 8
-ControlT = type(torch.Tensor())  # 8
-HomeostaticT = type(torch.Tensor())  # 6
+ZetaTensorT = type(torch.Tensor())  # Size 8
+ControlT = type(torch.Tensor())  # Size 8
+HomeostaticT = type(torch.Tensor())  # Size 6
 
 
 class Zeta:
@@ -31,45 +30,45 @@ class Zeta:
 
         self.n_homeostatic = self.difficulty.n_resources + 2 # muscle, aware
         self.shape = self.n_homeostatic + 2 # for both coordinates x, y
-        self._zeta_tensor: ZetaTensorT = torch.zeros(self.shape)
+        self.tensor: ZetaTensorT = torch.zeros(self.shape)
         self.x_indice = self.n_homeostatic + 0
         self.y_indice = self.n_homeostatic + 1
         self.last_direction = "none"
 
         if x and y:
-            self._zeta_tensor[self.n_homeostatic + 0] = x
-            self._zeta_tensor[self.n_homeostatic + 1] = y
+            self.tensor[self.n_homeostatic + 0] = x
+            self.tensor[self.n_homeostatic + 1] = y
             
 
     def resource(self, resource_i: int):
         assert resource_i < self.difficulty.n_resources
-        return self._zeta_tensor[resource_i]
+        return self.tensor[resource_i]
 
     @property
     def muscular_energy(self):
-        return self._zeta_tensor[self.difficulty.n_resources + 0]
+        return self.tensor[self.difficulty.n_resources + 0]
 
     @property
     def aware_energy(self):
-        return self._zeta_tensor[self.difficulty.n_resources + 1]
+        return self.tensor[self.difficulty.n_resources + 1]
 
     @property
     def x(self):
-        return self._zeta_tensor[self.n_homeostatic + 0]
+        return self.tensor[self.n_homeostatic + 0]
 
     @property
     def y(self):
-        return self._zeta_tensor[self.n_homeostatic + 1]
+        return self.tensor[self.n_homeostatic + 1]
 
     @property
     def homeostatic(self):
         """Homeostatic level is regulated to a set point."""
-        return self._zeta_tensor[:self.n_homeostatic]
+        return self.tensor[:self.n_homeostatic]
 
     @property
     def position(self):
         """Position coordinates are regulated to a set point."""
-        return self._zeta_tensor[self.n_homeostatic:]
+        return self.tensor[self.n_homeostatic:]
 
 
 class Agent:

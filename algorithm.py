@@ -231,7 +231,7 @@ class Algorithm:
         """
         delta_zeta = self.time_step * \
             self.agent.dynamics(self.agent.zeta, u)
-        return self.agent.zeta._zeta_tensor + delta_zeta
+        return self.agent.zeta.tensor + delta_zeta
 
     def integrate_multiple_steps(self, duration: float, control: ControlT):
         """We integrate rigorously with an exponential over 
@@ -253,7 +253,7 @@ class Algorithm:
         x = self.agent.zeta.homeostatic + self.agent.x_star
         rate = self.agent.coef_hertz + control
         new_x = x * torch.exp(rate * duration)
-        new_zeta = self.agent.zeta._zeta_tensor.clone()
+        new_zeta = self.agent.zeta.tensor.clone()
         new_zeta[:self.agent.zeta.n_homeostatic] = new_x - self.agent.x_star
         return new_zeta
 
@@ -270,7 +270,7 @@ class Algorithm:
         The new state (zeta), but with the agent who has wlaken to go to 
         the state and so which is therefore more tired.
         """
-        new_zeta_tensor = self.agent.zeta._zeta_tensor
+        new_zeta_tensor = self.agent.zeta.tensor
 
         agent_x = self.agent.zeta.x
         agent_y = self.agent.zeta.y
@@ -283,7 +283,7 @@ class Algorithm:
             # If the agent is already on the resource, then consuming it is done instantly
             u = self.actions_controls["not doing anything"]
 
-            self.agent.zeta._zeta_tensor = self.euler_method(u)
+            self.agent.zeta.tensor = self.euler_method(u)
 
             return new_zeta_tensor
 
@@ -345,7 +345,7 @@ class Algorithm:
             # Therefore, we integrate the differential equation until this time
             duration_sleep = self.n_min_time_sleep * self.time_step
             control_sleep = self.actions_controls["sleeping"][:self.agent.zeta.n_homeostatic]
-            new_zeta._zeta_tensor = self.integrate_multiple_steps(
+            new_zeta.tensor = self.integrate_multiple_steps(
                 duration_sleep, control_sleep)
 
         # going direcly to resource
@@ -361,10 +361,10 @@ class Algorithm:
             u = self.actions_controls[a_meaning]
 
             # Euler method to calculate the new zeta.
-            new_zeta._zeta_tensor = self.euler_method(u)
+            new_zeta.tensor = self.euler_method(u)
 
 
-        return new_zeta._zeta_tensor
+        return new_zeta.tensor
 
     def evaluate_action(self, action: int):
         """Return the score associated with the action.
@@ -385,7 +385,7 @@ class Algorithm:
         --------
         the score : pytorch float.
         """
-        _zeta_tensor = self.agent.zeta._zeta_tensor
+        _zeta_tensor = self.agent.zeta.tensor
         # f is a neural network taking one vector.
         # But this vector contains the information of zeta and u.
         # The u is the one-hot-encoded control associated with the action a
@@ -421,7 +421,7 @@ class Algorithm:
         f = self.net_f.forward(zeta_u).detach()
         new_zeta_tensor = _zeta_tensor + self.time_step * f
         new_zeta = Zeta(self.difficulty)
-        new_zeta._zeta_tensor = new_zeta_tensor
+        new_zeta.tensor = new_zeta_tensor
         instant_reward = self.agent.drive(new_zeta)
         grad_ = torch.autograd.grad(
             self.net_J(_zeta_tensor), _zeta_tensor)[0]
@@ -431,7 +431,7 @@ class Algorithm:
         score = instant_reward + future_reward
 
         _zeta_tensor.requires_grad = False
-        self.agent.zeta._zeta_tensor = _zeta_tensor
+        self.agent.zeta.tensor = _zeta_tensor
 
         for param in self.net_f.parameters():
             param.requires_grad = True
@@ -452,7 +452,7 @@ class Algorithm:
         Returns
         -------
         (action, loss): int, np.ndarray"""
-        _zeta = self.agent.zeta._zeta_tensor
+        _zeta = self.agent.zeta.tensor
         # if you are exacly on 0 (empty resource) you get stuck
         # because of the nature of the differential equation.
 
@@ -516,7 +516,7 @@ class Algorithm:
 
         # futur drive = d(\zeta_t, u_a) = 0.9
         new_zeta = Zeta(self.difficulty)
-        new_zeta._zeta_tensor = _new_zeta
+        new_zeta.tensor = _new_zeta
         instant_drive = self.agent.drive(new_zeta)
 
         # negative
@@ -538,7 +538,7 @@ class Algorithm:
         self.optimizer_f.zero_grad()
         self.optimizer_J.step()
 
-        self.agent.zeta._zeta_tensor = _new_zeta
+        self.agent.zeta.tensor = _new_zeta
 
         if (k % self.N_print) == 0:
             print("Iteration:", k, "/", self.N_iter - 1)
@@ -641,7 +641,7 @@ class Algorithm:
             "y",
         ]
 
-        historic_zeta_tensor = [zeta._zeta_tensor.detach(
+        historic_zeta_tensor = [zeta.tensor.detach(
         ).numpy() for zeta in self.historic_zeta[:frame+1]]
 
         df = pd.DataFrame(historic_zeta_tensor, columns=zeta_meaning)
