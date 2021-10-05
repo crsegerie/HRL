@@ -8,6 +8,14 @@ from utils import Difficulty
 
 
 @dataclass
+class Point:
+    """Point delimiting the boundaries of the environment."""
+
+    x: float
+    y: float
+
+
+@dataclass
 class ResourceDC:
     """Resource representing a type of resource in the environment."""
 
@@ -20,31 +28,29 @@ class ResourceDC:
 class Environment:
     def __init__(self, difficulty : Difficulty):
         # Simulation
-        coord_env_polygon = {
-            'xa': 1, 'ya': 1,
-            'xb': 1, 'yb': 5,
-            'xc': 2, 'yc': 5,
-            'xd': 2, 'yd': 3,
-            'xe': 3, 'ye': 3,
-            'xf': 3, 'yf': 4,
-            'xg': 4, 'yg': 4,
-            'xh': 4, 'yh': 6,
-            'xi': 9, 'yi': 6,
-            'xj': 9, 'yj': 5,
-            'xk': 6, 'yk': 5,
-            'xl': 6, 'yl': 3,
-            'xm': 7, 'ym': 3,
-            'xn': 7, 'yn': 0,
-            'xo': 6, 'yo': 0,
-            'xp': 6, 'yp': 2,
-            'xq': 5, 'yq': 2,
-            'xr': 5, 'yr': 1}
-        
-        coord_env_square = {
-            'xa': 0, 'ya': 0,
-            'xb': 10, 'yb': 0,
-            'xc': 10, 'yc': 10,
-            'xd': 0, 'yd': 10}
+        coord_env_polygon = [Point(1, 1),
+                             Point(1, 5),
+                             Point(2, 5),
+                             Point(2, 3),
+                             Point(3, 3),
+                             Point(3, 4),
+                             Point(4, 4),
+                             Point(4, 6),
+                             Point(9, 6),
+                             Point(9, 5),
+                             Point(6, 5),
+                             Point(6, 3),
+                             Point(7, 3),
+                             Point(7, 0),
+                             Point(6, 0),
+                             Point(6, 2),
+                             Point(5, 2),
+                             Point(5, 1)]
+
+        coord_env_square = [Point(0, 0),
+                            Point(10, 0),
+                            Point(10, 10),
+                            Point(0, 10),]
         
         self.coord_env = coord_env_polygon if difficulty.env == "polygon" else coord_env_square
         
@@ -72,25 +78,22 @@ class Environment:
         of the point.
         """
 
-        coords = self.coord_env
-        lab = list(coords.keys())
+        # It allows no to treat the last case from
+        # the end to the beginning separately
+        coords = self.coord_env + [self.coord_env[0]]
         n_left = 0
 
-        def is_left(ind_x, ind_y_1, ind_y_2):
-            cstr_1_y = (coords[lab[ind_y_1]] > y) and (
-                coords[lab[ind_y_2]] <= y)
-            cstr_2_y = (coords[lab[ind_y_1]] <= y) and (
-                coords[lab[ind_y_2]] > y)
-            cstr_x = (coords[lab[ind_x]] <= x)
+        def is_left(x0, y0, y1):
+            cstr_1_y = (y0 > y) and (y1 <= y)
+            cstr_2_y = (y0 <= y) and (y1 > y)
+            cstr_x = (x0 <= x)
             if (cstr_1_y or cstr_2_y) and cstr_x:
                 return True
             return False
 
-        for i in range(0, len(lab) - 2, 2):
-            if is_left(i, i + 1, i + 3):
+        for i, point in enumerate(coords[:-1]):
+            if is_left(point.x, point.y, coords[i + 1].y):
                 n_left += 1
-        if is_left(len(lab) - 2, len(lab) - 1, 1):
-            n_left += 1
         if n_left % 2 == 1:
             return True
         else:
@@ -103,27 +106,26 @@ class Environment:
         and the sides of the polygon.
         """
 
-        coords = self.coord_env
-        lab = list(coords.keys()) + list(coords.keys())[:2]
+        # It allows no to treat the last case from
+        # the end to the beginning separately
+        coords = self.coord_env + [self.coord_env[0]]
 
-        def is_inter(inter: List[float], ind: int):
-            """Check if the intersection between the segement [A, B] 
+        def point_in_seg(point: Point, A: Point, B: Point):
+            """Check if a point on the line AB is actually
+            on this segment (or just aligned to it)."""
+            in_seg = (point.x >= min(A.x, B.x)) and \
+                     (point.x <= max(A.x, B.x)) and \
+                     (point.y >= min(A.y, B.y)) and \
+                     (point.y <= max(A.y, B.y))
+            return in_seg
+
+        def is_inter(inter: Point, border0: Point, border1: Point):
+            """Check if the intersection between the segment [A, B] 
             and the border number i is both inside [A, B] and the border."""
-            inter_in_AB = (inter[0] >= min(xa, xb)) and \
-                          (inter[0] <= max(xa, xb)) and \
-                          (inter[1] >= min(ya, yb)) and \
-                          (inter[1] <= max(ya, yb))
+            inter_in_AB = point_in_seg(inter, Point(x=xa, y=ya), Point(x=xb, y=yb))
             if not inter_in_AB:
                 return False
-            inter_in_border = (inter[0] >= min(coords[lab[ind]],
-                                               coords[lab[ind + 2]])) and \
-                (inter[0] <= max(coords[lab[ind]],
-                                 coords[lab[ind + 2]])) and \
-                (inter[1] >= min(coords[lab[ind + 1]],
-                                 coords[lab[ind + 3]])) and \
-                (inter[1] <= max(coords[lab[ind + 1]],
-                                 coords[lab[ind + 3]]))
-
+            inter_in_border = point_in_seg(inter, border0, border1)
             if not inter_in_border:
                 return False
             return True
@@ -131,43 +133,38 @@ class Environment:
         if (xa != xb):
             alpha_1 = (yb - ya) / (xb - xa)
             beta_1 = (ya * xb - yb * xa) / (xb - xa)
-            for i in range(0, len(lab) - 2, 2):
-                if coords[lab[i]] == coords[lab[i + 2]]:
-                    inter = [coords[lab[i]], alpha_1 * coords[lab[i]] + beta_1]
-                    if is_inter(inter, i):
+            for i, point in enumerate(coords[:-1]):
+                if point.x == coords[i + 1].x:
+                    inter = Point(x=point.x, y=alpha_1 * point.x + beta_1)
+                    if is_inter(inter, point, coords[i + 1]):
                         return False
                 else:
                     if ya == yb:
-                        if ya == coords[lab[i + 1]]:
+                        if ya == point.y:
                             inter_in_border = (min(xa, xb) <=
-                                               max(coords[lab[i]],
-                                                   coords[lab[i + 2]])) and \
+                                               max(point.x, coords[i + 1].x)) and \
                                               (max(xa, xb) >=
-                                               min(coords[lab[i]],
-                                                   coords[lab[i + 2]]))
+                                               min(point.x, coords[i + 1].x))
                             if inter_in_border:
                                 return False
                     else:
-                        inter = [(coords[lab[i + 1]] - beta_1) / alpha_1,
-                                 coords[lab[i + 1]]]
-                        if is_inter(inter, i):
+                        inter = Point(x=(point.y - beta_1) / alpha_1, y=point.y)
+                        if is_inter(inter, point, coords[i + 1]):
                             return False
         else:
             # xa = xb : usefull when the agent is placed on a resource for example.
-            for i in range(0, len(lab) - 2, 2):
-                if coords[lab[i]] == coords[lab[i + 2]]:
-                    if xa == coords[lab[i]]:
+            for i, point in enumerate(coords[:-1]):
+                if point.x == coords[i + 1].x:
+                    if xa == point.x:
                         inter_in_border = (min(ya, yb) <=
-                                           max(coords[lab[i + 1]],
-                                               coords[lab[i + 3]])) and \
+                                           max(point.y, coords[i + 1].y)) and \
                                           (max(ya, yb) >=
-                                           min(coords[lab[i + 1]],
-                                               coords[lab[i + 3]]))
+                                           min(point.y, coords[i + 1].y))
                         if inter_in_border:
                             return False
                 else:
-                    inter = [xa, coords[lab[i + 1]]]
-                    if is_inter(inter, i):
+                    inter = Point(x=xa, y=point.y)
+                    if is_inter(inter, point, coords[i + 1]):
                         return False
         return True
 
@@ -201,14 +198,14 @@ class Environment:
         if ax is None:
             ax = plt.subplot(111)
 
-        lab = list(coords.keys())
-        for i in range(0, len(lab) - 2, 2):
-            ax.plot([coords[lab[i]], coords[lab[i + 2]]],
-                    [coords[lab[i + 1]], coords[lab[i + 3]]],
+        # It allows no to treat the last case from
+        # the end to the beginning separately
+        coords = self.coord_env + [self.coord_env[0]]
+
+        for i, point in enumerate(coords[:-1]):
+            ax.plot([point.x, coords[i + 1].y],
+                    [point.y, coords[i + 1].y],
                     '-', color='black', lw=2)
-        ax.plot([coords[lab[len(lab) - 2]], coords[lab[0]]],
-                [coords[lab[len(lab) - 1]], coords[lab[1]]],
-                '-', color='black', lw=2)
 
         self.plot_resources(ax, scale=1)
 
