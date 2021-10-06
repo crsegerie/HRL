@@ -31,7 +31,7 @@ class TestEnvironnement(unittest.TestCase):
             self.assertEqual(env.is_point_inside(x, y), inside)
 
     def test_is_point_inside_easy(self):
-        """EASY : 10x10 square environneemnt."""
+        """EASY: 10x10 square environment."""
         difficulty = Difficulty(level="EASY")
         env = Environment(difficulty)
 
@@ -65,7 +65,7 @@ class TestEnvironnement(unittest.TestCase):
         for (xa, ya, xb, yb, inside) in segments:
             self.assertEqual(env.is_segment_inside(xa, xb, ya, yb), inside)
 
-    def test_visualization_env(self):
+    def test_visualization_env_medium(self):
         difficulty = Difficulty(level="MEDIUM")
         env = Environment(difficulty)
 
@@ -93,8 +93,8 @@ class TestHRL(unittest.TestCase):
 
         algo.simulation()
         _zeta_tensor = algo.agent.zeta.tensor
-        wanted_results = torch.tensor(
-            [-0.9050, -1.9050, -2.9050, -3.9050,  0.1154,  0.1083,  4.7972,  1.0833, 3.0000])
+        #wanted_results = torch.tensor(
+        #    [-0.9050, -1.9050, -2.9050, -3.9050,  0.1154,  0.1083,  4.7972,  1.0833, 3.0000])
 
         #bool = torch.allclose(_zeta_tensor, wanted_results, rtol=1e-03)
 
