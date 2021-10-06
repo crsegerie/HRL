@@ -31,11 +31,11 @@ class Algorithm:
         self.asym_coeff = 100
 
         # plotting
+        self.N_print = 1
         self.cycle_plot = self.N_iter - 1
         self.N_rolling = 5
         # save neural networks weights every N_save_weights step
         self.N_save_weights = 1000
-        self.N_print = 1
 
         # ACTIONS METAPARAMETERS ##################################
 
@@ -547,8 +547,8 @@ class Algorithm:
             print("")
 
         if (k % self.N_save_weights) == 0:
-            torch.save(self.net_J.state_dict(), 'weights_net_J')
-            torch.save(self.net_f.state_dict(), 'weights_net_f')
+            torch.save(self.net_J.state_dict(), 'weights/weights_net_J')
+            torch.save(self.net_f.state_dict(), 'weights/weights_net_f')
 
         loss = np.array([Loss_f.detach().numpy(), Loss_J.detach().numpy()[0]])
         return action, loss
@@ -780,5 +780,5 @@ class Algorithm:
             if k % self.cycle_plot == 0:
                 self.plot(k)
 
-        torch.save(self.net_J.state_dict(), 'weights_net_J')
-        torch.save(self.net_f.state_dict(), 'weights_net_f')
+        torch.save(self.net_J.state_dict(), 'weights/weights_net_J')
+        torch.save(self.net_f.state_dict(), 'weights/weights_net_f')
