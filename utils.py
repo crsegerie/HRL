@@ -1,8 +1,8 @@
 import os
 import random
-from typing import Literal
 import numpy as np
 import torch
+from typing import Literal
 
 
 def set_all_seeds(seed):
@@ -19,12 +19,10 @@ class Difficulty:
 
         if level == "EASY":
             self.n_resources: Literal[2, 4] = 2
-
             self.env: Literal["polygon", "square"] = "square"
 
         if level == "MEDIUM":
             self.n_resources: Literal[2, 4] = 4
-
             self.env: Literal["polygon", "square"] = "polygon"
 
         def count_actions(self):
@@ -33,6 +31,6 @@ class Difficulty:
             (directly consuming or going directly to a resource)
             1 action for sleeping
             1 action for not doing anything"""
-            return 6 + 2*self.n_resources
+            return 6 + 2 * self.n_resources
 
         self.n_actions = count_actions(self)

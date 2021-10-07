@@ -1,16 +1,16 @@
 from typing import List
+from dataclasses import dataclass
+
+from utils import Difficulty
+
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
-import numpy as np
-
-from dataclasses import dataclass
-from utils import Difficulty
 
 
 @dataclass
 class Point:
     """Point delimiting the boundaries of the environment."""
-
     x: float
     y: float
 
@@ -18,7 +18,6 @@ class Point:
 @dataclass
 class ResourceDC:
     """Resource representing a type of resource in the environment."""
-
     x: float
     y: float
     r: float
@@ -54,7 +53,6 @@ class Environment:
         
         self.coord_env = coord_env_polygon if difficulty.env == "polygon" else coord_env_square
         
-
         four_resources: List[ResourceDC] = [
             ResourceDC(x=1.5, y=4.25, r=0.3, color='red'),
             ResourceDC(x=4.5, y=1.5, r=0.3, color='blue'),

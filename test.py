@@ -1,34 +1,20 @@
-import torch
 import unittest
 
 import numpy as np
+import torch
 import matplotlib.pyplot as plt
 
-from agent import Agent
-from environment import Environment
-from algorithm import Algorithm
-from nets import Net_J, Net_f
 from utils import set_all_seeds, Difficulty
-import os
+from environment import Environment
+from agent import Agent
+from nets import Net_J, Net_f
+from algorithm import Algorithm
 
+import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
 class TestEnvironnement(unittest.TestCase):
-
-    def test_is_point_inside_medium(self):
-        difficulty = Difficulty(level="MEDIUM")
-        env = Environment(difficulty)
-
-        Points = [
-            (1.1, 1.1, True),  # up right A
-            (0.9, 0.9, False),  # down left A
-            (0.9, 5, False),  # left B
-            (1.1, 4.9, True),  # right down B
-        ]
-
-        for (x, y, inside) in Points:
-            self.assertEqual(env.is_point_inside(x, y), inside)
 
     def test_is_point_inside_easy(self):
         """EASY: 10x10 square environment."""
@@ -45,18 +31,31 @@ class TestEnvironnement(unittest.TestCase):
         for (x, y, inside) in Points:
             self.assertEqual(env.is_point_inside(x, y), inside)
 
+    def test_is_point_inside_medium(self):
+        difficulty = Difficulty(level="MEDIUM")
+        env = Environment(difficulty)
+
+        Points = [
+            (1.1, 1.1, True), # up right A
+            (0.9, 0.9, False), # down left A
+            (0.9, 5, False), # left B
+            (1.1, 4.9, True), # right down B
+        ]
+
+        for (x, y, inside) in Points:
+            self.assertEqual(env.is_point_inside(x, y), inside)
+
     def test_is_segment_inside_medium(self):
         difficulty = Difficulty(level="MEDIUM")
-
         env = Environment(difficulty)
 
         segments = [
             # xa, ya, xb, yb,
-            (1.1, 1.1, 0.9, 0.9, False),  # up right A - down left A
-            (0.9, 0.9, 1.1, 1.1, False),  # down left A - up right A
-            (0.9, 0.9, 1.1, 4.9, False),  # down left A - right down B
-            (1.1, 1.1, 1.1, 4.9, True),  # up right A  - right down B
-            (1.1, 1.1, 1.1, 5.1, False),  # up right A  - right up B
+            (1.1, 1.1, 0.9, 0.9, False), # up right A - down left A
+            (0.9, 0.9, 1.1, 1.1, False), # down left A - up right A
+            (0.9, 0.9, 1.1, 4.9, False), # down left A - right down B
+            (1.1, 1.1, 1.1, 4.9, True), # up right A - right down B
+            (1.1, 1.1, 1.1, 5.1, False), # up right A - right up B
             (1.5, 1.5, 1.5, 4.5, True), # other test
             (1.5, 4.5, 1.5, 1.5, True), # other test
             (1.5, 6.5, 1.5, 1.5, False), # other test
@@ -70,8 +69,8 @@ class TestEnvironnement(unittest.TestCase):
         env = Environment(difficulty)
 
         values = np.zeros((90, 60))
-        for i in range(90):  # x
-            for j in range(60):  # y
+        for i in range(90): # x
+            for j in range(60): # y
                 values[i, j] = 1*env.is_point_inside(i/10, j/10)
 
         plt.imshow(values.T, cmap='cool', interpolation='nearest')

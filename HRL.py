@@ -3,6 +3,7 @@
 Described in the paper:
 Continuous Homeostatic Reinforcement Learning
 for Self-Regulated Autonomous Agents.
+
 Authors : Hugo Laurençon, Charbel-Raphaël Ségerie,
 Johann Lussange, Boris S. Gutkin.
 """
@@ -11,11 +12,12 @@ import sys
 import argparse
 
 from typing import Literal
-from agent import Agent
-from environment import Environment
-from algorithm import Algorithm
-from nets import Net_J, Net_f
+
 from utils import set_all_seeds, Difficulty
+from environment import Environment
+from agent import Agent
+from nets import Net_J, Net_f
+from algorithm import Algorithm
 
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
