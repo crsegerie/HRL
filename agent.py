@@ -90,6 +90,9 @@ class Agent:
         """
         # METAPARAMETERS ##########################################
 
+        self.time_step = 1
+        self.walking_speed = 0.1
+
         # homeostatic point
         # Resources 1, 2, 3, 4 and muscular fatigues and sleep fatigue
         x_star_4_resources = torch.Tensor([1, 2, 3, 4, 0, 0])
@@ -106,7 +109,6 @@ class Agent:
         # UTILS ##################################################
 
         # Setting initial position
-        # Btw, at the begining the agent is starving and exhausted...
         self.zeta: Zeta = Zeta(difficulty=difficulty, x=3, y=2)
 
     def dynamics(self, zeta: Zeta, u: ControlT):
@@ -121,7 +123,7 @@ class Agent:
             control. (freewill of the agent)
         """
         f = torch.zeros(zeta.shape)
-        # Those first coordinate are homeostatic, and with a null control,
+        # Those first coordinates are homeostatic, and with a null control,
         # zeta tends to zero.
 
         f[:zeta.n_homeostatic] = self.coef_hertz * (zeta.homeostatic + self.x_star) + \
@@ -132,6 +134,50 @@ class Agent:
         # The agent can choose himself his speed.
         f[zeta.n_homeostatic:] = u[zeta.n_homeostatic:]
         return f
+
+    def euler_method(self, zeta: Zeta, u: ControlT) -> ZetaTensorT:
+        """Euler method for tiny time steps.
+
+        Parameters
+        ----------
+        zeta: torch.tensor
+            whole world state.
+        u: torch.tensor
+            control. (freewill of the agent)
+
+        Returns:
+        --------
+        The updated zeta.
+        """
+        delta_zeta = self.time_step * self.dynamics(zeta, u)
+        new_zeta = zeta.tensor + delta_zeta
+        return new_zeta
+
+    def integrate_multiple_steps(self, duration: float, zeta: Zeta, control: ControlT):
+        """We integrate rigorously with an exponential over 
+        long time period the differential equation.
+
+        This function is usefull in the case of big actions, 
+        such as going direclty to one of the resource.
+
+        PARAMETER:
+        ----------
+        duration:
+            duration of time to integrate over.
+        zeta: torch.tensor
+            whole world state.
+        u: torch.tensor
+            control. (freewill of the agent)
+
+        RETURNS:
+        -------
+        new_zeta. The updated zeta."""
+        x = zeta.homeostatic + self.x_star
+        rate = self.coef_hertz + control
+        new_x = x * torch.exp(rate * duration)
+        new_zeta = zeta.tensor.clone()
+        new_zeta[:zeta.n_homeostatic] = new_x - self.x_star
+        return new_zeta
 
     def drive(self, zeta: Zeta, epsilon: float = 0.001):
         """

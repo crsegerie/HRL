@@ -7,19 +7,19 @@ from matplotlib.colors import Normalize
 import pandas as pd
 
 
-from agent import Agent, ControlT, ZetaTensorT, HomeostaticT, ControlT, Zeta
 from environment import Environment
+from agent import Agent, ControlT, ZetaTensorT, HomeostaticT, ControlT, Zeta
+from actions import Actions
 from nets import Net_J, Net_f
 
 
 class Algorithm:
-    def __init__(self, difficulty: Difficulty, env: Environment, agent: Agent, net_J: Net_J, net_f: Net_f):
+    def __init__(self, difficulty: Difficulty, env: Environment, agent: Agent, actions: Actions, net_J: Net_J, net_f: Net_f):
 
         # ALGOS METAPARAMETERS ##################################
 
         # Iterations
         self.N_iter = 100
-        self.time_step = 1
 
         # RL learning
         self.eps = 0.3  # random actions
@@ -37,89 +37,10 @@ class Algorithm:
         # save neural networks weights every N_save_weights step
         self.N_save_weights = 1000
 
-        # ACTIONS METAPARAMETERS ##################################
-
-        self.walking_speed = 0.1
-
-        n_resources = difficulty.n_resources
-        n_shape = agent.zeta.shape
-        
-        # a list mapping the action to a control.
-        # For each action, there is a control verifying for example that
-        # the muscular tiredness enables the agent to walk.
-        # for example, for the first action (walking), we verify that the
-        # tiredness is not above 6.
-        # For the second action (running), we verify that the tiredness is
-        # not above 3.
-
-        self.actions_controls: Dict[str, Any] = {
-            "walking_right": [0.]*n_resources + [0.01, 0., self.walking_speed, 0.], 
-            "walking_left": [0.]*n_resources + [0.01, 0., -self.walking_speed, 0.], 
-            "walking_up": [0.]*n_resources + [0.01, 0., 0., self.walking_speed], 
-            "walking_down": [0.]*n_resources + [0.01, 0., 0., -self.walking_speed], 
-            "sleeping": [0.]*n_resources + [0., -0.001, 0., 0.],
-        }
-
-        # Simply eating
-        for resource in range(n_resources):
-            control = [0.]*n_shape
-            control[resource] = 0.1
-            self.actions_controls[f"eat resource {str(resource)}"] = control
-
-        self.actions_controls["not doing anything"] = [0.]*n_shape
-
-        # Keep in mind that the agent looses resources and energy even
-        # if he does nothing via the function f.
-        self.actions_controls = {
-            key: torch.Tensor(x)
-            for key, x in self.actions_controls.items()}
-
-        # there are 4 additionnal actions : Going to the 4 resource and eating
-        self.nb_actions = len(self.actions_controls) + n_resources
-
-        # a vector representing the physical limits. Example: you cannot eat
-        # more than 6 kg of food...
-        # Same order of action as actions_controls
-        # Constraint verify the tiredness. There are tree types of tiredness:
-        # - muscular tiredness (M)
-        # - and sleep tiredness (S)
-        # - max_food_in_the_stomach (F)
-        #               walkR  L  U  D Sleep, eat
-        #                   M, M, M, M, S,    F*n_resources     (*)
-        # TODO:: dans pandas
-        self.constraints = [6, 6, 6, 6, 1] + [8]*n_resources + [None]
-        # (*) There is not any constraint when you do anything.
-
-        # An agent cannot do micro sleep.
-        # He cannot wake during a minimum amount of time.
-        # ratio of the minimum sleep time for the agent and the time_step
-        self.n_min_time_sleep = 1000
-        # If the agent is too tired, he automatically sleeps.
-        self.max_tired = 10
-
-        self.meaning_actions = {
-            i: key for i, key
-            in enumerate(self.actions_controls.keys())}
-
-        meaning_big_actions = {
-            len(self.actions_controls) + r: f"going direcly to resource {str(r)}"
-            for r in range(n_resources)
-        }
-
-        self.meaning_actions.update(meaning_big_actions)
-        self.inv_meaning_actions = {v: k for k,
-                                    v in self.meaning_actions.items()}
-
-        # If one of the agent resource is lower than min_resource,
-        # we put it back at min_resource
-        # This help because if one of the agent resource equals 0,
-        # because of the dynamics of the exponintial,
-        # the agent cannot reconstitute this resource.
-        self.min_resource = 0.1
-
         # CLASSES #########################################
         self.env = env
         self.agent = agent
+        self.actions = actions
         self.net_J = net_J
         self.net_f = net_f
 
@@ -134,238 +55,6 @@ class Algorithm:
         self.historic_actions = []
         self.historic_losses = []  # will contain a list of 2d [L_f, L_J]
 
-    def actions_possible(self):
-        """Return a list of bool showing which action is permitted or not.
-
-        + 4 for the action of going to a resource after seeing it
-        """
-        zeta = self.agent.zeta
-
-        # TODO:: boucle sur pandas
-        # There are 4 more possible actions:
-        # The 4 last actions correspond to going direcly to each of the
-        # 4 ressources if possible.
-        possible_actions = [True for i in range(
-            len(self.actions_controls) + self.agent.zeta.shape)]
-
-        # If the agent is too tired in his muscle
-        if zeta.muscular_energy >= self.constraints[0]:
-            # walking is no more possible
-            possible_actions[self.inv_meaning_actions["walking_right"]] = False
-            possible_actions[self.inv_meaning_actions["walking_left"]] = False
-            possible_actions[self.inv_meaning_actions["walking_up"]] = False
-            possible_actions[self.inv_meaning_actions["walking_down"]] = False
-
-        # He cannot escape the environment when walking.
-        # TODO: zeta_meaning["x"] = 6
-        # TODO: x_indice = 6
-        str_walkings = ["walking_up", "walking_down", "walking_right", "walking_left"]
-        for str_walking in str_walkings:
-            x_walk = zeta.x + self.time_step * \
-                self.actions_controls[str_walking][self.agent.zeta.x_indice]
-            y_walk = zeta.y + self.time_step * \
-                self.actions_controls[str_walking][self.agent.zeta.y_indice]
-            x_walk, y_walk = float(x_walk), float(y_walk)
-            if not self.env.is_point_inside(x_walk, y_walk):
-                possible_actions[self.inv_meaning_actions[str_walking]] = False
-
-
-        # The agent cannot sleep if he is not enouth tired.
-        if zeta.aware_energy <= self.constraints[self.inv_meaning_actions["sleeping"]]:
-            possible_actions[self.inv_meaning_actions["sleeping"]] = False
-
-        # If the agent is too sleepy, the only possible action is to sleep.
-        if zeta.aware_energy >= self.max_tired:
-            possible_actions = [False for p in possible_actions]
-            possible_actions[self.inv_meaning_actions["sleeping"]] = True
-
-        def is_near_resource(resource_i: int):
-            dist = (zeta.x - self.env.resources[resource_i].x)**2 + (
-                zeta.y - self.env.resources[resource_i].y)**2
-            radius = self.env.resources[resource_i].r**2
-            return dist < radius
-
-        def check_resource_eatable(resource_i: int):
-            # 4 because there are walking, running, turning trigo and turning anti trigo
-            index_resource = self.inv_meaning_actions[f"eat resource {resource_i}"]
-
-            # It cannont eat if he hax already "le ventre plein"
-            if zeta.resource(resource_i) >= self.constraints[index_resource]:
-                possible_actions[index_resource] = False
-
-            # It cannot eat if he too far away.
-            if not is_near_resource(resource_i):
-                possible_actions[index_resource] = False
-
-        n_resources = self.agent.zeta.difficulty.n_resources
-        for resource in range(n_resources):
-            check_resource_eatable(resource)
-
-        def is_resource_visible(resource: int):
-            """Check if segment between agent and resource i is visible"""
-            xa = float(zeta.x)
-            xb = self.env.resources[resource].x
-            ya = float(zeta.y)
-            yb = self.env.resources[resource].y
-            return self.env.is_segment_inside(xa, xb, ya, yb)
-
-        # big actions : seing a resource and eat it.
-        for resource in range(n_resources):
-            if not is_resource_visible(resource):
-                possible_actions[len(possible_actions) -
-                                 n_resources + resource] = False
-
-        return possible_actions
-
-    def euler_method(self, u: ControlT) -> ZetaTensorT:
-        """Euler method for tiny time steps.
-
-        Parameters
-        ----------
-        u: torch.tensor
-            control. (freewill of the agent)
-
-        Returns:
-        --------
-        The updated zeta.
-        """
-        delta_zeta = self.time_step * \
-            self.agent.dynamics(self.agent.zeta, u)
-        return self.agent.zeta.tensor + delta_zeta
-
-    def integrate_multiple_steps(self, duration: float, control: ControlT):
-        """We integrate rigorously with an exponential over 
-        long time period the differential equation.
-
-        This function is usefull in the case of big actions, 
-        such as going direclty to one of the resource.
-
-        PARAMETER:
-        ----------
-        duration:
-            duration of time to integrate over.
-        control:
-            index of the action.
-
-        RETURNS:
-        -------
-        new_zeta. The updated zeta."""
-        x = self.agent.zeta.homeostatic + self.agent.x_star
-        rate = self.agent.coef_hertz + control
-        new_x = x * torch.exp(rate * duration)
-        new_zeta = self.agent.zeta.tensor.clone()
-        new_zeta[:self.agent.zeta.n_homeostatic] = new_x - self.agent.x_star
-        return new_zeta
-
-    def going_and_get_resource(self, resource_i: int) -> ZetaTensorT:
-        """Return the new state associated with the special action a going 
-        direclty to the resource.
-
-        Parameter:
-        ----------
-        resource : example : "resource_1
-
-        Returns:
-        --------
-        The new state (zeta), but with the agent who has wlaken to go to 
-        the state and so which is therefore more tired.
-        """
-        new_zeta_tensor = self.agent.zeta.tensor
-
-        agent_x = self.agent.zeta.x
-        agent_y = self.agent.zeta.y
-        resource_x = self.env.resources[resource_i].x
-        resource_y = self.env.resources[resource_i].y
-        distance = np.sqrt((agent_x - resource_x)**2 +
-                           (agent_y - resource_y)**2)
-
-        if distance == 0:
-            # If the agent is already on the resource, then consuming it is done instantly
-            u = self.actions_controls["not doing anything"]
-
-            self.agent.zeta.tensor = self.euler_method(u)
-
-            return new_zeta_tensor
-
-        # If the agent is at a distance d from the resource,
-        # it will first need to walk
-        # to consume it. Thus, we integrate the differential
-        # equation of its internal state during this time
-        time_to_walk = distance * self.time_step / self.walking_speed
-        
-        # We take only homeostatic part of the control
-        # So the direction does not matter here
-        # TODO: LI norm
-        control = self.actions_controls["walking_up"][:self.agent.zeta.n_homeostatic]
-        new_zeta_tensor = self.integrate_multiple_steps(
-            time_to_walk, control)
-
-        new_zeta_tensor[self.agent.zeta.x_indice] = self.env.resources[resource_i].x
-        new_zeta_tensor[self.agent.zeta.y_indice] = self.env.resources[resource_i].y
-        return new_zeta_tensor
-            
-
-    def new_state(self, a: int) -> ZetaTensorT:
-        """Return the new state after an action is taken.
-
-        Parameter:
-        ----------
-        a: action.
-        actions = [
-            0# walking right
-            1# walking left
-            2# walking up
-            3# walking down
-            4# sleeping
-            5# eat 0
-            6# eat 1
-            7# eat 2
-            8# eat 3
-            9# not doing anything
-        ]
-
-        And we have also complementatry actions:
-        action_resource = {
-            10: "resource_0",
-            11: "resource_1",
-            12: "resource_2",
-            13: "resource_3",
-        }
-
-
-        Returns:
-        --------
-        The new states.
-        """
-        new_zeta = Zeta(self.difficulty)
-
-        # 4 is sleeping
-        if a == self.inv_meaning_actions["sleeping"]:
-            # The new state is when the agent wakes up
-            # Therefore, we integrate the differential equation until this time
-            duration_sleep = self.n_min_time_sleep * self.time_step
-            control_sleep = self.actions_controls["sleeping"][:self.agent.zeta.n_homeostatic]
-            new_zeta.tensor = self.integrate_multiple_steps(
-                duration_sleep, control_sleep)
-
-        # going direcly to resource
-        elif a in [self.inv_meaning_actions[f"going direcly to resource {i}"]
-                   for i in range(self.difficulty.n_resources)]:
-            resource_i = int(self.meaning_actions[a][-1:])
-            self.going_and_get_resource(resource_i)
-
-        # Other actions: elementary actions
-        else:
-            u = torch.zeros(self.agent.zeta.shape)
-            a_meaning = list(self.actions_controls.keys())[a]
-            u = self.actions_controls[a_meaning]
-
-            # Euler method to calculate the new zeta.
-            new_zeta.tensor = self.euler_method(u)
-
-
-        return new_zeta.tensor
-
     def evaluate_action(self, action: int):
         """Return the score associated with the action.
 
@@ -373,7 +62,7 @@ class Algorithm:
          so we use the eval mode.
         But we still seek to use the derivative of the Net_F according to zeta.
          So we use require_grad = True.
-        Generally, inly the parameters of a neural network are on 
+        Generally, only the parameters of a neural network are on 
         require_grad = True.
         But here we must use zeta.require_grad = True.
 
@@ -390,7 +79,7 @@ class Algorithm:
         # But this vector contains the information of zeta and u.
         # The u is the one-hot-encoded control associated with the action a
         zeta_u = torch.cat(
-            [_zeta_tensor, torch.zeros(self.nb_actions)])
+            [_zeta_tensor, torch.zeros(self.actions.nb_actions)])
         index_control = len(_zeta_tensor) + action
         zeta_u[index_control] = 1
 
@@ -419,7 +108,7 @@ class Algorithm:
         # If you want to freeze part of your model and train the rest, you can set
         # requires_grad of the parameters you want to freeze to False.
         f = self.net_f.forward(zeta_u).detach()
-        new_zeta_tensor = _zeta_tensor + self.time_step * f
+        new_zeta_tensor = _zeta_tensor + self.agent.time_step * f
         new_zeta = Zeta(self.difficulty)
         new_zeta.tensor = new_zeta_tensor
         instant_reward = self.agent.drive(new_zeta)
@@ -458,15 +147,15 @@ class Algorithm:
 
         for i in range(self.agent.zeta.n_homeostatic):
             # zeta = x - x_star
-            if _zeta[i] + self.agent.x_star[i] < self.min_resource:
-                _zeta[i] = -self.agent.x_star[i] + self.min_resource
+            if _zeta[i] + self.agent.x_star[i] < self.actions.min_resource:
+                _zeta[i] = -self.agent.x_star[i] + self.actions.min_resource
 
-        possible_actions = self.actions_possible()
+        possible_actions = self.actions.actions_possible(self.env, self.agent)
         indexes_possible_actions = [i for i in range(
-            self.nb_actions) if possible_actions[i]]
+            self.actions.nb_actions) if possible_actions[i]]
 
         # The default action is doing nothing. Like people in real life.
-        action = self.inv_meaning_actions["not doing anything"]
+        action = self.actions.inv_meaning_actions["not doing anything"]
 
         if np.random.random() <= self.eps:
             action = np.random.choice(indexes_possible_actions)
@@ -480,24 +169,24 @@ class Algorithm:
                     action = act
 
         zeta_u = torch.cat(
-            [_zeta, torch.zeros(self.nb_actions)])
+            [_zeta, torch.zeros(self.actions.nb_actions)])
         zeta_u[len(_zeta) + action] = 1
 
-        _new_zeta = self.new_state(action)  # actual choosen new_zeta
+        _new_zeta = self.actions.new_state(self.env, self.agent, action)  # actual choosen new_zeta
         
-        if self.meaning_actions[action] in ["walking_right", "walking_up", "walking_down", "walking_left"]:
-            self.agent.zeta.last_direction = self.meaning_actions[action]
+        if self.actions.meaning_actions[action] in ["walking_right", "walking_up", "walking_down", "walking_left"]:
+            self.agent.zeta.last_direction = self.actions.meaning_actions[action]
         
 
         coeff = self.asym_coeff
         # set of big actions leading directly to the resources and 4 is for sleeping
         indices_going_directly = [
-            self.inv_meaning_actions[f"going direcly to resource {i}"]
+            self.actions.inv_meaning_actions[f"going direcly to resource {i}"]
             for i in range(self.difficulty.n_resources)]
-        if action in [self.inv_meaning_actions["sleeping"]] + indices_going_directly:
+        if action in [self.actions.inv_meaning_actions["sleeping"]] + indices_going_directly:
             coeff = 1
 
-        predicted_new_zeta = _zeta + self.time_step * \
+        predicted_new_zeta = _zeta + self.agent.time_step * \
             self.net_f.forward(zeta_u)
 
         Loss_f = coeff * torch.dot(_new_zeta - predicted_new_zeta,
@@ -542,7 +231,7 @@ class Algorithm:
 
         if (k % self.N_print) == 0:
             print("Iteration:", k, "/", self.N_iter - 1)
-            print("Action:", action, self.meaning_actions[action])
+            print("Action:", action, self.actions.meaning_actions[action])
             print("zeta:", _zeta)
             print("")
 
@@ -554,7 +243,8 @@ class Algorithm:
         return action, loss
 
     def compute_mask(self, scale: int):
-        """Compute the mask.
+        """Compute the mask indicating if a discretized value is inside
+        or outside the environment.
 
         Parameters:
         -----------
@@ -620,7 +310,7 @@ class Algorithm:
         cbar = fig.colorbar(im, extend='both', shrink=0.4, ax=ax)
 
     def plot_ressources(self, ax, frame: int):
-        """Plot the historic of the ressrouce with time in abscisse.
+        """Plot the resource historic as a function of time.
 
         Parameters:
         -----------
@@ -747,7 +437,7 @@ class Algorithm:
 
         fig.suptitle(
             (f'Dashboard. Frame: {frame} - last action: '
-                f'{last_action}: {self.meaning_actions[last_action]} '),
+                f'{last_action}: {self.actions.meaning_actions[last_action]} '),
             fontsize=16)
 
         self.plot_position(ax=ax_env, zeta=zeta)
