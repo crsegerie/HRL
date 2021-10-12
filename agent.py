@@ -45,20 +45,20 @@ class Zeta:
         return self.tensor[resource_i]
 
     @property
-    def muscular_energy(self):
-        return self.tensor[self.difficulty.n_resources + 0]
+    def muscular_fatigue(self) -> float:
+        return float(self.tensor[self.difficulty.n_resources + 0])
 
     @property
-    def aware_energy(self):
-        return self.tensor[self.difficulty.n_resources + 1]
+    def aware_energy(self) -> float:
+        return float(self.tensor[self.difficulty.n_resources + 1])
 
     @property
-    def x(self):
-        return self.tensor[self.n_homeostatic + 0]
+    def x(self) -> float:
+        return float(self.tensor[self.n_homeostatic + 0])
 
     @property
-    def y(self):
-        return self.tensor[self.n_homeostatic + 1]
+    def y(self) -> float:
+        return float(self.tensor[self.n_homeostatic + 1])
 
     @property
     def homeostatic(self):

@@ -70,7 +70,7 @@ class Environment:
         self.width = 9 if difficulty.env == "polygon" else 10
         self.height = 6 if difficulty.env == "polygon" else 10
 
-    def is_point_inside(self, x: float, y: float):
+    def is_point_inside(self, x: float, y: float) -> bool:
         """Check if a point (x,y) is inside the polygon.
         To do this, we look at the number of sides of the polygon at the left
         of the point.

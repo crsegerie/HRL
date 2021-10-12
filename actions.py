@@ -19,8 +19,8 @@ class Action:
     """Defining each action individually."""
     name: str
     definition: str
-    #constraints: function
-    #control: function
+    constraints: Callable[[Agent, Environment], bool]
+    new_state: Callable[[Agent, Environment], Zeta]
     coefficient_loss: float
 
 
@@ -36,7 +36,7 @@ class Actions:
 
         n_resources = difficulty.n_resources
         n_shape = agent.zeta.shape
-        
+
         # a list mapping the action to a control.
         # For each action, there is a control verifying for example that
         # the muscular tiredness enables the agent to walk.
@@ -46,10 +46,10 @@ class Actions:
         # not above 3.
 
         self.actions_controls: Dict[str, Any] = {
-            "walking_right": [0.]*n_resources + [0.01, 0., agent.walking_speed, 0.], 
-            "walking_left": [0.]*n_resources + [0.01, 0., -agent.walking_speed, 0.], 
-            "walking_up": [0.]*n_resources + [0.01, 0., 0., agent.walking_speed], 
-            "walking_down": [0.]*n_resources + [0.01, 0., 0., -agent.walking_speed], 
+            "walking_right": [0.]*n_resources + [0.01, 0., agent.walking_speed, 0.],
+            "walking_left": [0.]*n_resources + [0.01, 0., -agent.walking_speed, 0.],
+            "walking_up": [0.]*n_resources + [0.01, 0., 0., agent.walking_speed],
+            "walking_down": [0.]*n_resources + [0.01, 0., 0., -agent.walking_speed],
             "sleeping": [0.]*n_resources + [0., -0.001, 0., 0.],
         }
 
@@ -125,7 +125,7 @@ class Actions:
             len(self.actions_controls) + agent.zeta.shape)]
 
         # If the agent is too tired in his muscle
-        if zeta.muscular_energy >= self.constraints[0]:
+        if zeta.muscular_fatigue >= self.constraints[0]:
             # walking is no more possible
             possible_actions[self.inv_meaning_actions["walking_right"]] = False
             possible_actions[self.inv_meaning_actions["walking_left"]] = False
@@ -135,7 +135,8 @@ class Actions:
         # He cannot escape the environment when walking.
         # TODO: zeta_meaning["x"] = 6
         # TODO: x_indice = 6
-        str_walkings = ["walking_up", "walking_down", "walking_right", "walking_left"]
+        str_walkings = ["walking_up", "walking_down",
+                        "walking_right", "walking_left"]
         for str_walking in str_walkings:
             x_walk = zeta.x + agent.time_step * \
                 self.actions_controls[str_walking][agent.zeta.x_indice]
@@ -144,7 +145,6 @@ class Actions:
             x_walk, y_walk = float(x_walk), float(y_walk)
             if not env.is_point_inside(x_walk, y_walk):
                 possible_actions[self.inv_meaning_actions[str_walking]] = False
-
 
         # The agent cannot sleep if he is not enouth tired.
         if zeta.aware_energy <= self.constraints[self.inv_meaning_actions["sleeping"]]:
@@ -194,7 +194,7 @@ class Actions:
         return possible_actions
 
     def going_and_get_resource(self, env: Environment, agent: Agent, resource_i: int) -> ZetaTensorT:
-        """Return the new state associated with the special action a going 
+        """Return the new state associated with the special action a going
         direclty to the resource.
 
         Parameter:
@@ -203,7 +203,7 @@ class Actions:
 
         Returns:
         --------
-        The new state (zeta), but with the agent who has wlaken to go to 
+        The new state (zeta), but with the agent who has wlaken to go to
         the state and so which is therefore more tired.
         """
         new_zeta_tensor = agent.zeta.tensor
@@ -228,7 +228,7 @@ class Actions:
         # to consume it. Thus, we integrate the differential
         # equation of its internal state during this time
         time_to_walk = distance * agent.time_step / agent.walking_speed
-        
+
         # We take only homeostatic part of the control
         # So the direction does not matter here
         # TODO: LI norm
@@ -239,7 +239,6 @@ class Actions:
         new_zeta_tensor[agent.zeta.x_indice] = env.resources[resource_i].x
         new_zeta_tensor[agent.zeta.y_indice] = env.resources[resource_i].y
         return new_zeta_tensor
-            
 
     def new_state(self, env: Environment, agent: Agent, a: int) -> ZetaTensorT:
         """Return the new state after an action is taken.
@@ -299,42 +298,156 @@ class Actions:
             # Euler method to calculate the new zeta.
             new_zeta.tensor = agent.euler_method(agent.zeta, u)
 
-
         return new_zeta.tensor
 
+    def init2(self):
 
+        # WALKING RIGHT
+        def new_state_walking_right(agent: Agent, env:Environment) -> Zeta:
+            new_zeta = Zeta(self.difficulty)
+            control_walking_right = torch.tensor(
+                [0.]*self.difficulty.n_resources + [0.01, 0., agent.walking_speed, 0.])
+            new_zeta.tensor = agent.euler_method(
+                agent.zeta, control_walking_right)
+            return new_zeta
 
-    """
+        def constraints_walking_right(agent: Agent, env: Environment) -> bool:
+            new_zeta = new_state_walking_right(agent, env)
+            return (agent.zeta.aware_energy < self.max_tired 
+                    and  (agent.zeta.muscular_fatigue < 6) 
+                    and env.is_point_inside(new_zeta.x, new_zeta.y))
 
-    # WALKING_RIGHT
-
-    action_walking_right = Action(
-        name = "walking_right", 
-        definition = "walking one step right",
-        constraints: Callable[[Zeta, Environment], bool] = lambda zeta, env: (zeta.muscular_energy < 6) and \
-            zeta.x + 
+        action_walking_right = Action(
+            name="walking_right",
+            definition="walking one step right",
+            new_state=new_state_walking_right,
+            constraints=constraints_walking_right,
+            coefficient_loss=1,
         )
-    
-    
-    
-    actions_list = [
-        {"name": "walking_right", "definition": 0, "constraint": wlaking_constrain, "control": 0, "coefficient loss": 0},
-        {"name": "walking_left", "definition": 0, "constraint": 0, "control": 0, "coefficient loss": 0},
-        {"name": "walking_up", "definition": 0, "constraint": 0, "control": 0, "coefficient loss": 0},
-        {"name": "walking_down", "definition": 0, "constraint": 0, "control": 0, "coefficient loss": 0}
+
+        # SLEEPING
+        def new_state_sleeping(agent: Agent, env:Environment) -> Zeta:
+            new_zeta = Zeta(self.difficulty)
+            control_sleeping = torch.tensor([0.]*self.difficulty.n_resources + [0., -0.001, 0., 0.])
+            control_sleeping = control_sleeping[:agent.zeta.n_homeostatic]
+            
+            duration_sleep = self.n_min_time_sleep * agent.time_step
+            new_zeta.tensor = agent.integrate_multiple_steps(
+                duration_sleep, agent.zeta, control_sleeping)
+            return new_zeta
+
+        def constraints_sleeping(agent: Agent, env: Environment) -> bool:
+            return (agent.zeta.aware_energy > 1)
+
+        action_sleeping = Action(
+            name="sleeping",
+            definition="sleeps for a fixed time period to recover from muscular and aware tiredness.",
+            new_state=new_state_sleeping,
+            constraints=constraints_sleeping,
+            coefficient_loss=100, # Maybe 1 sufficient
+        )
+        
+        
+        
+        
+        # getting directly resource 0
+        # TODO: put inside env
+        def is_resource_visible(zeta:Zeta, env:Environment, resource: int):
+            """Check if segment between agent and resource i is visible"""
+            xb = env.resources[resource].x
+            yb = env.resources[resource].y
+            return env.is_segment_inside(zeta.x, xb, zeta.y, yb)
+        
+        def distance_to_resource(zeta:Zeta, env:Environment, resource: int)-> float:
+            """Check if segment between agent and resource i is visible"""
+            xb = env.resources[resource].x
+            yb = env.resources[resource].y
+            return np.linalg.norm(np.array([zeta.x- xb, zeta.y- yb]))
+        
+        def going_and_get_resource(self, env: Environment, agent: Agent, resource_i: int) -> ZetaTensorT:
+            """Return the new state associated with the special action a going
+            direclty to the resource.
+
+            Parameter:
+            ----------
+            resource : example : "resource_1
+
+            Returns:
+            --------
+            The new state (zeta), but with the agent who has wlaken to go to
+            the state and so which is therefore more tired.
+            """
+            new_zeta_tensor = agent.zeta.tensor
+
+            agent_x = agent.zeta.x
+            agent_y = agent.zeta.y
+            resource_x = env.resources[resource_i].x
+            resource_y = env.resources[resource_i].y
+            distance = np.sqrt((agent_x - resource_x)**2 +
+                            (agent_y - resource_y)**2)
+
+            if distance == 0:
+                # If the agent is already on the resource, then consuming it is done instantly
+                u = self.actions_controls["not doing anything"]
+
+                agent.zeta.tensor = agent.euler_method(agent.zeta, u)
+
+                return new_zeta_tensor
+
+            # If the agent is at a distance d from the resource,
+            # it will first need to walk
+            # to consume it. Thus, we integrate the differential
+            # equation of its internal state during this time
+            time_to_walk = distance * agent.time_step / agent.walking_speed
+
+            # We take only homeostatic part of the control
+            # So the direction does not matter here
+            # TODO: LI norm
+            control = self.actions_controls["walking_up"][:agent.zeta.n_homeostatic]
+            new_zeta_tensor = agent.integrate_multiple_steps(
+                time_to_walk, agent.zeta, control)
+
+            new_zeta_tensor[agent.zeta.x_indice] = env.resources[resource_i].x
+            new_zeta_tensor[agent.zeta.y_indice] = env.resources[resource_i].y
+            return new_zeta_tensor
+        
+        def new_state_getting_directly_resource_0(agent: Agent, env:Environment) -> Zeta:
+            new_zeta = Zeta(self.difficulty)
+            new_zeta.tensor = self.going_and_get_resource(env, agent, resource_i=0)
+            return new_zeta
+
+        def constraints_getting_directly_resource_0(agent: Agent, env: Environment) -> bool:
+            new_zeta = new_state_getting_directly_resource_0(agent, env)
+            return ((new_zeta.aware_energy < self.max_tired)  
+                    and (new_zeta.muscular_fatigue < 6)
+                    and is_resource_visible(agent.zeta, env, resource=0)
+                    and distance_to_resource(agent.zeta, env, resource=0) > 0
+
+        action_getting_directly_resource_0 = Action(
+            name="getting_directly_resource_0",
+            definition="When the agent sees a resource, we can plan going directly to it.",
+            new_state=new_state_getting_directly_resource_0,
+            constraints=constraints_getting_directly_resource_0,
+            coefficient_loss=100, # Maybe 1 sufficient
+        )
+
+        actions_list = [
+            {"name": "walking_right", "definition": 0,
+                "constraint": wlaking_constrain, "control": 0, "coefficient loss": 0},
+            {"name": "walking_left", "definition": 0,
+                "constraint": 0, "control": 0, "coefficient loss": 0},
+            {"name": "walking_up", "definition": 0, "constraint": 0,
+                "control": 0, "coefficient loss": 0},
+            {"name": "walking_down", "definition": 0,
+                "constraint": 0, "control": 0, "coefficient loss": 0}
         ]
-    
-    constraints_eating = [lambda (i, x) :  ]
-    
-    actions_list = actions_list + \
-        [{"name": f"eat resource {str(resource)}", "definition": 0, "constraint": lambda , "control": 0, "coefficient loss": 0} 
-            for resource in range(difficulty.n_resources)]
-    
-    
-    
-    self.actions = pd.DataFrame(actions_list)
 
-    self.n_actions = len(self.actions)
+        constraints_eating = [lambda (i, x):]
 
-    """
+        actions_list = actions_list +
+        [{"name": f"eat resource {str(resource)}", "definition": 0, "constraint": lambda, "control": 0, "coefficient loss": 0}
+         for resource in range(difficulty.n_resources)]
 
+        self.actions = pd.DataFrame(actions_list)
+
+        self.n_actions = len(self.actions)
