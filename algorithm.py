@@ -79,7 +79,7 @@ class Algorithm:
         # But this vector contains the information of zeta and u.
         # The u is the one-hot-encoded control associated with the action a
         zeta_u = torch.cat(
-            [_zeta_tensor, torch.zeros(self.actions.nb_actions)])
+            [_zeta_tensor, torch.zeros(self.actions.n_actions)])
         index_control = len(_zeta_tensor) + action
         zeta_u[index_control] = 1
 
@@ -152,7 +152,7 @@ class Algorithm:
 
         possible_actions = self.actions.actions_possible(self.env, self.agent)
         indexes_possible_actions = [i for i in range(
-            self.actions.nb_actions) if possible_actions[i]]
+            self.actions.n_actions) if possible_actions[i]]
 
         # The default action is doing nothing. Like people in real life.
         action = self.actions.inv_meaning_actions["not doing anything"]
@@ -169,7 +169,7 @@ class Algorithm:
                     action = act
 
         zeta_u = torch.cat(
-            [_zeta, torch.zeros(self.actions.nb_actions)])
+            [_zeta, torch.zeros(self.actions.n_actions)])
         zeta_u[len(_zeta) + action] = 1
 
         _new_zeta = self.actions.new_state(self.env, self.agent, action)  # actual choosen new_zeta

@@ -68,7 +68,7 @@ class Actions:
             for key, x in self.actions_controls.items()}
 
         # there are 4 additionnal actions : Going to the 4 resource and eating
-        self.nb_actions = len(self.actions_controls) + n_resources
+        self.n_actions = len(self.actions_controls) + n_resources
 
         # a vector representing the physical limits. Example: you cannot eat
         # more than 6 kg of food...

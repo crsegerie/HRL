@@ -61,9 +61,7 @@ def main(argv):
     agent = Agent(difficulty)
     actions = Actions(difficulty, agent)
     net_J = Net_J(shape_zeta=agent.zeta.shape)
-    
-    # TODO: actions should be in another Class.
-    net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=difficulty.n_actions)
+    net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=actions.n_actions)
     algo = Algorithm(difficulty, env, agent, actions, net_J, net_f)
 
     algo.N_iter = args.num_iter

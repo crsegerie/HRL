@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from utils import set_all_seeds, Difficulty
 from environment import Environment
 from agent import Agent
+from actions import Actions
 from nets import Net_J, Net_f
 from algorithm import Algorithm
 
@@ -84,11 +85,13 @@ class TestHRL(unittest.TestCase):
         set_all_seeds(seed)
 
         difficulty = Difficulty(level="MEDIUM")
+
         env = Environment(difficulty)
         agent = Agent(difficulty)
-        net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=difficulty.n_actions)
+        actions = Actions(difficulty, agent)
         net_J = Net_J(shape_zeta=agent.zeta.shape)
-        algo = Algorithm(difficulty, env, agent, net_J, net_f)
+        net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=actions.n_actions)
+        algo = Algorithm(difficulty, env, agent, actions, net_J, net_f)
 
         algo.simulation()
         _zeta_tensor = algo.agent.zeta.tensor
