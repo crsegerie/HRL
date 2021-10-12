@@ -111,6 +111,25 @@ class Agent:
         # Setting initial position
         self.zeta: Zeta = Zeta(difficulty=difficulty, x=3, y=2)
 
+    def drive(self, zeta: Zeta, epsilon: float = 0.001):
+        """
+        Return the Agent's drive which is the distance between the agent's 
+        state and the homeostatic set point.
+        ...
+
+        Variables
+        ---------
+        zeta: torch.tensor
+            whole world state.
+        u: torch.tensor
+            control. (freewill of the agent)
+        """
+        # in the delta, we only count the internal state.
+        # The tree last coordinate do not count in the homeostatic set point.
+        delta = zeta.homeostatic
+        drive_delta = torch.sqrt(epsilon + torch.dot(delta, delta))
+        return drive_delta
+        
     def dynamics(self, zeta: Zeta, u: ControlT):
         """
         Return the Agent's dynamics which is represented by the f function.
@@ -179,21 +198,3 @@ class Agent:
         new_zeta[:zeta.n_homeostatic] = new_x - self.x_star
         return new_zeta
 
-    def drive(self, zeta: Zeta, epsilon: float = 0.001):
-        """
-        Return the Agent's drive which is the distance between the agent's 
-        state and the homeostatic set point.
-        ...
-
-        Variables
-        ---------
-        zeta: torch.tensor
-            whole world state.
-        u: torch.tensor
-            control. (freewill of the agent)
-        """
-        # in the delta, we only count the internal state.
-        # The tree last coordinate do not count in the homeostatic set point.
-        delta = zeta.homeostatic
-        drive_delta = torch.sqrt(epsilon + torch.dot(delta, delta))
-        return drive_delta
