@@ -97,7 +97,7 @@ class Environment:
         else:
             return False
 
-    def is_segment_inside(self, xa: float, xb: float, ya: float, yb: float):
+    def is_segment_inside(self, xa: float, xb: float, ya: float, yb: float) -> bool:
         """Check if the segment AB with A(xa, ya) and B(xb, yb) is completely
         inside the polygon.
         To do this, we look at the number of intersections between the segment
@@ -165,6 +165,20 @@ class Environment:
                     if is_inter(inter, point, coords[i + 1]):
                         return False
         return True
+
+    def distance_to_resource(self, x: float, y: float, res: int) -> float:
+        dist = (x - self.resources[res].x)**2 + (y - self.resources[res].y)**2
+        return dist
+
+    def is_near_resource(self, x: float, y: float, res: int) -> bool:
+        dist = distance_to_resource(x, y, res)
+        radius = self.resources[res].r**2
+        return dist < radius
+
+    def is_resource_visible(self, x: float, y: float, res: int) -> bool:
+        xb = self.resources[res].x
+        yb = self.resources[res].y
+        return self.is_segment_inside(x, xb, y, yb)
 
     def plot_resources(self, ax, scale: int, resources: List[int]=[0, 1, 2, 3]):
         """Add circles representing the resources on the plot."""
