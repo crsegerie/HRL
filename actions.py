@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 from typing import Any, Dict
 
 from environment import Environment
@@ -12,16 +10,6 @@ import numpy as np
 from typing import Callable
 
 import pandas as pd
-
-
-@dataclass
-class Action:
-    """Defining each action individually."""
-    name: str
-    definition: str
-    constraints: Callable[[Agent, Environment], bool]
-    new_state: Callable[[Agent, Environment], Zeta]
-    coefficient_loss: float
 
 
 class Actions:
@@ -300,38 +288,110 @@ class Actions:
 
         return new_zeta.tensor
 
-    def init2(self):
 
-        # WALKING RIGHT
-        def new_state_walking_right(agent: Agent, env:Environment) -> Zeta:
-            new_zeta = Zeta(self.difficulty)
-            control_walking_right = torch.tensor(
-                [0.]*self.difficulty.n_resources + [0.01, 0., agent.walking_speed, 0.])
-            new_zeta.tensor = agent.euler_method(
-                agent.zeta, control_walking_right)
-            return new_zeta
 
-        def constraints_walking_right(agent: Agent, env: Environment) -> bool:
-            new_zeta = new_state_walking_right(agent, env)
-            return (agent.zeta.aware_energy < self.max_tired 
-                    and  (agent.zeta.muscular_fatigue < 6) 
-                    and env.is_point_inside(new_zeta.x, new_zeta.y))
 
-        action_walking_right = Action(
-            name="walking_right",
-            definition="walking one step right",
-            new_state=new_state_walking_right,
-            constraints=constraints_walking_right,
-            coefficient_loss=1,
-        )
 
-        # SLEEPING
-        def new_state_sleeping(agent: Agent, env:Environment) -> Zeta:
-            new_zeta = Zeta(self.difficulty)
+
+
+
+
+
+
+
+    def init2(self, difficulty: Difficulty, agent: Agent):
+
+        actions_list = []
+
+        # USEFUL FOR ACTIONS OF WALKING
+
+        def new_state_and_constraints_walking(direction: str):
+            if direction not in ['right', 'left', 'up', 'down']:
+                raise ValueError('direction should be right, left, up or down.')
+            elif direction == 'right':
+                control_walking = torch.tensor(
+                    [0.]*self.difficulty.n_resources + [0.01, 0., agent.walking_speed, 0.])
+            elif direction == 'left':
+                control_walking = torch.tensor(
+                    [0.]*self.difficulty.n_resources + [0.01, 0., -agent.walking_speed, 0.])
+            elif direction == 'up':
+                control_walking = torch.tensor(
+                    [0.]*self.difficulty.n_resources + [0.01, 0., 0., agent.walking_speed])
+            elif direction == 'down':
+                control_walking = torch.tensor(
+                    [0.]*self.difficulty.n_resources + [0.01, 0., 0., -agent.walking_speed])
+
+            def new_state_walking(agent: Agent, env: Environment) -> Zeta:
+                new_zeta = Zeta(self.difficulty)
+                new_zeta.tensor = agent.euler_method(agent.zeta, control_walking)
+                return new_zeta
+
+            def constraints_walking(agent: Agent, env: Environment) -> bool:
+                new_zeta = new_state_walking(agent, env)
+                return (agent.zeta.aware_energy < self.max_tired 
+                        and (agent.zeta.muscular_fatigue < 6) 
+                        and env.is_point_inside(new_zeta.x, new_zeta.y))
+
+            return new_state_walking, constraints_walking
+
+        # ACTION OF WALKING RIGHT
+
+        new_state_walking_right, constraints_walking_right = new_state_and_constraints_walking('right')
+
+        action_walking_right = {
+            "name": "walking_right",
+            "definition": "Walking one step to the right.",
+            "new_state": new_state_walking_right,
+            "constraints": constraints_walking_right,
+            "coefficient_loss": 1,
+        }
+        actions_list.append(action_walking_right)
+
+        # ACTION OF WALKING LEFT
+
+        new_state_walking_left, constraints_walking_left = new_state_and_constraints_walking('left')
+
+        action_walking_left = {
+            "name": "walking_left",
+            "definition": "Walking one step to the left.",
+            "new_state": new_state_walking_left,
+            "constraints": constraints_walking_left,
+            "coefficient_loss": 1,
+        }
+        actions_list.append(action_walking_left)
+
+        # ACTION OF WALKING UP
+
+        new_state_walking_up, constraints_walking_up = new_state_and_constraints_walking('up')
+
+        action_walking_up = {
+            "name": "walking_up",
+            "definition": "Walking one step up.",
+            "new_state": new_state_walking_up,
+            "constraints": constraints_walking_up,
+            "coefficient_loss": 1,
+        }
+        actions_list.append(action_walking_up)
+
+        # ACTION OF WALKING DOWN
+
+        new_state_walking_down, constraints_walking_down = new_state_and_constraints_walking('down')
+
+        action_walking_down = {
+            "name": "walking_down",
+            "definition": "Walking one step down.",
+            "new_state": new_state_walking_down,
+            "constraints": constraints_walking_down,
+            "coefficient_loss": 1,
+        }
+        actions_list.append(action_walking_down)
+
+        # ACTION OF SLEEPING
+
+        def new_state_sleeping(agent: Agent, env: Environment) -> Zeta:
             control_sleeping = torch.tensor([0.]*self.difficulty.n_resources + [0., -0.001, 0., 0.])
-            control_sleeping = control_sleeping[:agent.zeta.n_homeostatic]
-            
             duration_sleep = self.n_min_time_sleep * agent.time_step
+            new_zeta = Zeta(self.difficulty)
             new_zeta.tensor = agent.integrate_multiple_steps(
                 duration_sleep, agent.zeta, control_sleeping)
             return new_zeta
@@ -339,14 +399,90 @@ class Actions:
         def constraints_sleeping(agent: Agent, env: Environment) -> bool:
             return (agent.zeta.aware_energy > 1)
 
-        action_sleeping = Action(
-            name="sleeping",
-            definition="sleeps for a fixed time period to recover from muscular and aware tiredness.",
-            new_state=new_state_sleeping,
-            constraints=constraints_sleeping,
-            coefficient_loss=100, # Maybe 1 sufficient
-        )
+        action_sleeping = {
+            "name": "sleeping",
+            "definition": "Sleeping for a fixed time period to recover from muscular and aware tiredness.",
+            "new_state": new_state_sleeping,
+            "constraints": constraints_sleeping,
+            "coefficient_loss": 100,
+        }
+        actions_list.append(action_sleeping)
+
+        # ACTION OF DOING NOTHING
+
+        def new_state_doing_nothing(agent: Agent, env: Environment) -> Zeta:
+            control_doing_nothing = torch.tensor([0.]*agent.zeta.shape)
+            new_zeta = Zeta(self.difficulty)
+            new_zeta.tensor = agent.euler_method(agent.zeta, control_doing_nothing)
+            return new_zeta
+
+        def constraints_doing_nothing(agent: Agent, env: Environment) -> bool:
+            return (agent.zeta.aware_energy < self.max_tired)
+
+        action_doing_nothing = {
+            "name": "doing_nothing",
+            "definition": "Standing still and doing nothing.",
+            "new_state": new_state_doing_nothing,
+            "constraints": constraints_doing_nothing,
+            "coefficient_loss": 1,
+        }
+        actions_list.append(action_doing_nothing)
+
+
+
+
+
+
+
+
+
+
+        # ACTION OF CONSUMING RESOURCE 0
+
+        def new_state_consuming_resource_0(agent: Agent, env: Environment) -> Zeta:
+            control_consuming_resource_0 = [0.]*agent.zeta.shape
+            control_consuming_resource_0[0] = 0.1
+            control_consuming_resource_0 = torch.tensor(control_consuming_resource_0)
+            new_zeta = Zeta(self.difficulty)
+            new_zeta.tensor = agent.euler_method(agent.zeta, control_consuming_resource_0)
+            return new_zeta
+
+        def constraints_consuming_resource_0(agent: Agent, env: Environment) -> bool:
+            return (agent.zeta.aware_energy < self.max_tired)
+
+        action_consuming_resource_0 = {
+            "name": "consuming_resource_0",
+            "definition": "Consuming resource 0.",
+            "new_state": new_state_consuming_resource_0,
+            "constraints": constraints_consuming_resource_0,
+            "coefficient_loss": 1,
+        }
+        actions_list.append(action_consuming_resource_0)
+
+
+
+
+
+
+
+
+
+        self.actions = pd.DataFrame(actions_list)
+        self.n_actions = len(self.actions)
         
+
+
+
+
+
+
+
+
+
+
+
+
+
         
         
         
@@ -431,23 +567,8 @@ class Actions:
             coefficient_loss=100, # Maybe 1 sufficient
         )
 
-        actions_list = [
-            {"name": "walking_right", "definition": 0,
-                "constraint": wlaking_constrain, "control": 0, "coefficient loss": 0},
-            {"name": "walking_left", "definition": 0,
-                "constraint": 0, "control": 0, "coefficient loss": 0},
-            {"name": "walking_up", "definition": 0, "constraint": 0,
-                "control": 0, "coefficient loss": 0},
-            {"name": "walking_down", "definition": 0,
-                "constraint": 0, "control": 0, "coefficient loss": 0}
-        ]
 
-        constraints_eating = [lambda (i, x):]
 
-        actions_list = actions_list +
-        [{"name": f"eat resource {str(resource)}", "definition": 0, "constraint": lambda, "control": 0, "coefficient loss": 0}
-         for resource in range(difficulty.n_resources)]
 
-        self.actions = pd.DataFrame(actions_list)
 
-        self.n_actions = len(self.actions)
+

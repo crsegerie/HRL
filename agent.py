@@ -192,7 +192,7 @@ class Agent:
         -------
         new_zeta. The updated zeta."""
         x = zeta.homeostatic + self.x_star
-        rate = self.coef_hertz + control
+        rate = self.coef_hertz + control[:zeta.n_homeostatic]
         new_x = x * torch.exp(rate * duration)
         new_zeta = zeta.tensor.clone()
         new_zeta[:zeta.n_homeostatic] = new_x - self.x_star
