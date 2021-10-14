@@ -299,7 +299,20 @@ class Actions:
 
 
 
-    def init2(self, difficulty: Difficulty, agent: Agent):
+    def init2(self, difficulty: Difficulty, agent: Agent) -> None:
+
+        self.difficulty = difficulty
+
+        # Minimum duration for the action of sleeping
+        self.n_min_time_sleep = 1000
+        # If the agent is too tired, it automatically sleeps.
+        self.max_tired = 10
+
+        # If any of the agent's resources are less than min_resource,
+        # we raise it to min_resource.
+        # Because the dynamics is controlled by an exponential function,
+        # if one resource equals 0, it can never be raised again.
+        self.min_resource = 0.1
 
         actions_list = []
 
