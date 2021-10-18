@@ -171,7 +171,7 @@ class Environment:
         return dist
 
     def is_near_resource(self, x: float, y: float, res: int) -> bool:
-        dist = distance_to_resource(x, y, res)
+        dist = self.distance_to_resource(x, y, res)
         radius = self.resources[res].r**2
         return dist < radius
 

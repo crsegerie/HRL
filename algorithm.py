@@ -14,7 +14,8 @@ from nets import Net_J, Net_f
 
 
 class Algorithm:
-    def __init__(self, difficulty: Difficulty, env: Environment, agent: Agent, actions: Actions, net_J: Net_J, net_f: Net_f):
+    def __init__(self, difficulty: Difficulty, env: Environment, agent: Agent,
+                 actions: Actions, net_J: Net_J, net_f: Net_f):
 
         # ALGOS METAPARAMETERS ##################################
 
@@ -150,17 +151,18 @@ class Algorithm:
             if _zeta[i] + self.agent.x_star[i] < self.actions.min_resource:
                 _zeta[i] = -self.agent.x_star[i] + self.actions.min_resource
 
-        possible_actions = self.actions.actions_possible(self.env, self.agent)
+        possible_actions = [cstr(self.agent, self.env) for cstr in self.actions.df.loc[:, "constraints"].tolist()]
         indexes_possible_actions = [i for i in range(
             self.actions.n_actions) if possible_actions[i]]
 
         # The default action is doing nothing. Like people in real life.
-        action = self.actions.inv_meaning_actions["not doing anything"]
+        action = self.actions.df.index[self.actions.df.loc[:, "name"] == "doing_nothing"][0]
 
         if np.random.random() <= self.eps:
             action = np.random.choice(indexes_possible_actions)
 
         else:
+            # TODO: use batch
             best_score = np.Inf
             for act in indexes_possible_actions:
                 score = self.evaluate_action(act)
@@ -172,22 +174,17 @@ class Algorithm:
             [_zeta, torch.zeros(self.actions.n_actions)])
         zeta_u[len(_zeta) + action] = 1
 
-        _new_zeta = self.actions.new_state(self.env, self.agent, action)  # actual choosen new_zeta
+        new_zeta = Zeta(self.difficulty)
+        new_zeta.tensor = self.actions.df.loc[action, "new_state"](self.agent, self.env).tensor
+        _new_zeta = new_zeta.tensor
         
-        if self.actions.meaning_actions[action] in ["walking_right", "walking_up", "walking_down", "walking_left"]:
-            self.agent.zeta.last_direction = self.actions.meaning_actions[action]
-        
-
-        coeff = self.asym_coeff
-        # set of big actions leading directly to the resources and 4 is for sleeping
-        indices_going_directly = [
-            self.actions.inv_meaning_actions[f"going direcly to resource {i}"]
-            for i in range(self.difficulty.n_resources)]
-        if action in [self.actions.inv_meaning_actions["sleeping"]] + indices_going_directly:
-            coeff = 1
+        if "walking" in self.actions.df.loc[action, "name"]:
+            self.agent.zeta.last_direction = self.actions.df.loc[action, "name"]
 
         predicted_new_zeta = _zeta + self.agent.time_step * \
             self.net_f.forward(zeta_u)
+
+        coeff = self.actions.df.loc[action, "coefficient_loss"]
 
         Loss_f = coeff * torch.dot(_new_zeta - predicted_new_zeta,
                                    _new_zeta - predicted_new_zeta)
@@ -231,7 +228,7 @@ class Algorithm:
 
         if (k % self.N_print) == 0:
             print("Iteration:", k, "/", self.N_iter - 1)
-            print("Action:", action, self.actions.meaning_actions[action])
+            print("Action:", action, self.actions.df.loc[action, "name"])
             print("zeta:", _zeta)
             print("")
 
@@ -389,11 +386,11 @@ class Algorithm:
         dx, dy = 0, 0
         if self.agent.zeta.last_direction == "walking_right":
             dx, dy = 1, 0
-        if self.agent.zeta.last_direction == "walking_left":
+        elif self.agent.zeta.last_direction == "walking_left":
             dx, dy = -1, 0
-        if self.agent.zeta.last_direction == "walking_up":
+        elif self.agent.zeta.last_direction == "walking_up":
             dx, dy = 0, 1
-        if self.agent.zeta.last_direction == "walking_down":
+        elif self.agent.zeta.last_direction == "walking_down":
             dx, dy = 0, -1
             
 
@@ -437,7 +434,7 @@ class Algorithm:
 
         fig.suptitle(
             (f'Dashboard. Frame: {frame} - last action: '
-                f'{last_action}: {self.actions.meaning_actions[last_action]} '),
+                f'{last_action}: {self.actions.df.loc[last_action, "name"]} '),
             fontsize=16)
 
         self.plot_position(ax=ax_env, zeta=zeta)
