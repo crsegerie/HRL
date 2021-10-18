@@ -215,7 +215,7 @@ class Environment:
         coords = self.coord_env + [self.coord_env[0]]
 
         for i, point in enumerate(coords[:-1]):
-            ax.plot([point.x, coords[i + 1].y],
+            ax.plot([point.x, coords[i + 1].x],
                     [point.y, coords[i + 1].y],
                     '-', color='black', lw=2)
 
