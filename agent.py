@@ -42,7 +42,7 @@ class Zeta:
 
     def resource(self, resource_i: int):
         assert resource_i < self.difficulty.n_resources
-        return self.tensor[resource_i]
+        return float(self.tensor[resource_i])
 
     @property
     def muscular_fatigue(self) -> float:
@@ -55,10 +55,18 @@ class Zeta:
     @property
     def x(self) -> float:
         return float(self.tensor[self.n_homeostatic + 0])
+    
+    @x.setter
+    def x(self, x : float) -> None:
+        self.tensor[self.n_homeostatic + 0] = x
 
     @property
     def y(self) -> float:
         return float(self.tensor[self.n_homeostatic + 1])
+    
+    @y.setter
+    def y(self, y : float) -> None:
+        self.tensor[self.n_homeostatic + 1] = y
 
     @property
     def homeostatic(self):

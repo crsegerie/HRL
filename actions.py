@@ -169,8 +169,8 @@ class Actions:
                     new_zeta = Zeta(difficulty)
                     new_zeta.tensor = agent.integrate_multiple_steps(
                         duration_walking, agent.zeta, control_going_to_resource)
-                    new_zeta.tensor.x = env.resources[res].x
-                    new_zeta.tensor.y = env.resources[res].y
+                    new_zeta.x = env.resources[res].x
+                    new_zeta.y = env.resources[res].y
 
                     return new_zeta
 
