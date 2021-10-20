@@ -18,7 +18,7 @@ class Zeta:
         zeta[2] : resource 2
         zeta[3] : resource 3
         zeta[4] : muscular energy (muscular resource)
-        zeta[5] : aware energy (aware resource) : low if sleepy.
+        zeta[5] : aware energy (aware resource) : high if sleepy.
         
         not homeostatic (position)
         zeta[6] : x-coordinate

@@ -121,6 +121,7 @@ class Algorithm:
         score = instant_reward + future_reward
 
         _zeta_tensor.requires_grad = False
+        # BIZARRE
         self.agent.zeta.tensor = _zeta_tensor
 
         for param in self.net_f.parameters():

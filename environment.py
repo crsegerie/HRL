@@ -166,8 +166,14 @@ class Environment:
                         return False
         return True
 
-    def distance_to_resource(self, x: float, y: float, res: int) -> float:
-        dist = (x - self.resources[res].x)**2 + (y - self.resources[res].y)**2
+    def distance_to_resource(self, x: float, y: float, res: int, norm: str = "L1") -> float:
+        if norm not in ["L1", "L2"]:
+            raise ValueError("norm should be 'L1' or 'L2'.")
+        diff = np.array([x - self.resources[res].x, y - self.resources[res].y])
+        if norm == "L1":
+            dist = np.linalg.norm(diff, ord=1)
+        elif norm == "L2":
+            dist = np.linalg.norm(diff)
         return dist
 
     def is_near_resource(self, x: float, y: float, res: int) -> bool:
