@@ -8,7 +8,8 @@ import pandas as pd
 
 
 from environment import Environment
-from agent import Agent, ControlT, ZetaTensorT, HomeostaticT, ControlT, Zeta
+from agent import Agent, ControlT, ZetaTensorT, ControlT, Zeta
+from utils import HomeostaticT
 from actions import Actions
 from nets import Net_J, Net_f
 
@@ -109,7 +110,7 @@ class Algorithm:
         # If you want to freeze part of your model and train the rest, you can set
         # requires_grad of the parameters you want to freeze to False.
         f = self.net_f.forward(zeta_u).detach()
-        new_zeta_tensor = _zeta_tensor + self.agent.time_step * f
+        new_zeta_tensor = _zeta_tensor + self.hp.cst_algo.time_step * f
         new_zeta = Zeta(self.hp)
         new_zeta.tensor = new_zeta_tensor
         instant_reward = self.agent.drive(new_zeta)
@@ -149,8 +150,8 @@ class Algorithm:
 
         for i in range(self.agent.zeta.n_homeostatic):
             # zeta = x - x_star
-            if _zeta[i] + self.agent.x_star[i] < self.actions.min_resource:
-                _zeta[i] = -self.agent.x_star[i] + self.actions.min_resource
+            if _zeta[i] + self.hp.cst_agent.x_star[i] < self.actions.min_resource:
+                _zeta[i] = -self.hp.cst_agent.x_star[i] + self.actions.min_resource
 
         possible_actions = [cstr(self.agent, self.env) for cstr in self.actions.df.loc[:, "constraints"].tolist()]
         indexes_possible_actions = [i for i in range(
@@ -182,7 +183,7 @@ class Algorithm:
         if "walking" in self.actions.df.loc[action, "name"]:
             self.agent.zeta.last_direction = self.actions.df.loc[action, "name"]
 
-        predicted_new_zeta = _zeta + self.agent.time_step * \
+        predicted_new_zeta = _zeta + self.hp.cst_algo.time_step * \
             self.net_f.forward(zeta_u)
 
         coeff = self.actions.df.loc[action, "coefficient_loss"]
@@ -295,7 +296,7 @@ class Algorithm:
                     # No muscular nor energic fatigues.
                     zeta = torch.Tensor(
                         [0.] * self.hp.difficulty.n_resources + [0., 0., i/scale, j/scale])
-                    zeta[resource_id] = -self.agent.x_star[resource_id]
+                    zeta[resource_id] = -self.hp.cst_agent.x_star[resource_id]
                     values[i, j] = self.net_J(zeta).detach().numpy()
 
         im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
@@ -400,8 +401,8 @@ class Algorithm:
         ax.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
         ax.set_title("Position of the agent.")
 
-    def plot(self, frame: int,  scale=5):
-        """Plot the position, angle and the ressources of the agent.
+    def plot(self, frame: int, scale=5):
+        """Plot the position and the ressources of the agent.
 
         - time, ressources, historic in transparence 
         -> faire une fonction plot en dehors de l'agent

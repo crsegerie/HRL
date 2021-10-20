@@ -17,7 +17,7 @@ class Actions:
     in its environment.
     """
 
-    def __init__(self, hyperparam: Hyperparam, agent: Agent) -> None:
+    def __init__(self, hyperparam: Hyperparam) -> None:
 
         self.hp = hyperparam
 
@@ -41,16 +41,16 @@ class Actions:
                 raise ValueError('direction should be right, left, up or down.')
             elif direction == 'right':
                 control_walking = torch.tensor(
-                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., agent.walking_speed, 0.])
+                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., self.hp.cst_agent.walking_speed, 0.])
             elif direction == 'left':
                 control_walking = torch.tensor(
-                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., -agent.walking_speed, 0.])
+                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., -self.hp.cst_agent.walking_speed, 0.])
             elif direction == 'up':
                 control_walking = torch.tensor(
-                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., 0., agent.walking_speed])
+                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., 0., self.hp.cst_agent.walking_speed])
             elif direction == 'down':
                 control_walking = torch.tensor(
-                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., 0., -agent.walking_speed])
+                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., 0., -self.hp.cst_agent.walking_speed])
 
             def new_state_walking(agent: Agent, env: Environment) -> Zeta:
                 new_zeta = Zeta(self.hp)
@@ -82,7 +82,7 @@ class Actions:
 
         def new_state_sleeping(agent: Agent, env: Environment) -> Zeta:
             control_sleeping = torch.tensor([0.]*self.hp.difficulty.n_resources + [0., -0.001, 0., 0.])
-            duration_sleep = self.n_min_time_sleep * agent.time_step
+            duration_sleep = self.n_min_time_sleep * self.hp.cst_algo.time_step
             new_zeta = Zeta(self.hp)
             new_zeta.tensor = agent.integrate_multiple_steps(
                 duration_sleep, agent.zeta, control_sleeping)
@@ -164,7 +164,7 @@ class Actions:
                     control_going_to_resource = torch.tensor(
                         [0.]*self.hp.difficulty.n_resources + [0.01, 0., 0., 0.])
                     dist = env.distance_to_resource(agent.zeta.x, agent.zeta.y, res)
-                    duration_walking = dist * agent.time_step / agent.walking_speed
+                    duration_walking = dist * self.hp.cst_algo.time_step / self.hp.cst_agent.walking_speed
 
                     new_zeta = Zeta(self.hp)
                     new_zeta.tensor = agent.integrate_multiple_steps(

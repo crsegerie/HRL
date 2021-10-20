@@ -3,7 +3,6 @@ import torch
 
 ZetaTensorT = type(torch.Tensor())  # Size 8
 ControlT = type(torch.Tensor())  # Size 8
-HomeostaticT = type(torch.Tensor())  # Size 6
 
 
 class Zeta:
@@ -96,28 +95,10 @@ class Agent:
         zeta: state of the agent.
 
         """
-        # METAPARAMETERS ##########################################
-
-        self.time_step = 1
-        self.walking_speed = 0.1
-
-        # homeostatic point
-        # Resources 1, 2, 3, 4 and muscular fatigues and sleep fatigue
-        x_star_4_resources = torch.Tensor([1, 2, 3, 4, 0, 0])
-        x_star_2_resources = torch.Tensor([1, 2, 0, 0])
-
-        self.x_star: HomeostaticT = x_star_4_resources \
-            if hyperparam.difficulty.n_resources == 4 else x_star_2_resources
-
-        # parameters of the function f
-        # same + x, y
-        self.coef_hertz: HomeostaticT = torch.Tensor(
-            [-0.05]*hyperparam.difficulty.n_resources +[-0.008, 0.0005])
-
-        # UTILS ##################################################
+        self.hp = hyperparam
 
         # Setting initial position
-        self.zeta: Zeta = Zeta(hyperparam=hyperparam, x=2, y=2)
+        self.zeta: Zeta = Zeta(hyperparam=self.hp, x=2, y=2)
 
     def drive(self, zeta: Zeta, epsilon: float = 0.001):
         """
@@ -153,8 +134,8 @@ class Agent:
         # Those first coordinates are homeostatic, and with a null control,
         # zeta tends to zero.
 
-        f[:zeta.n_homeostatic] = self.coef_hertz * (zeta.homeostatic + self.x_star) + \
-            u[:zeta.n_homeostatic] * (zeta.homeostatic + self.x_star)
+        f[:zeta.n_homeostatic] = (self.hp.cst_agent.coef_hertz + u[:zeta.n_homeostatic]) * \
+            (zeta.homeostatic + self.hp.cst_agent.x_star)
 
         # Those coordinates are not homeostatic : they represent the x-speed,
         # y-speed, and angular-speed.
@@ -176,7 +157,7 @@ class Agent:
         --------
         The updated zeta.
         """
-        delta_zeta = self.time_step * self.dynamics(zeta, u)
+        delta_zeta = self.hp.cst_algo.time_step * self.dynamics(zeta, u)
         new_zeta = zeta.tensor + delta_zeta
         return new_zeta
 
@@ -199,10 +180,10 @@ class Agent:
         RETURNS:
         -------
         new_zeta. The updated zeta."""
-        x = zeta.homeostatic + self.x_star
-        rate = self.coef_hertz + control[:zeta.n_homeostatic]
+        x = zeta.homeostatic + self.hp.cst_agent.x_star
+        rate = self.hp.cst_agent.coef_hertz + control[:zeta.n_homeostatic]
         new_x = x * torch.exp(rate * duration)
         new_zeta = zeta.tensor.clone()
-        new_zeta[:zeta.n_homeostatic] = new_x - self.x_star
+        new_zeta[:zeta.n_homeostatic] = new_x - self.hp.cst_agent.x_star
         return new_zeta
 

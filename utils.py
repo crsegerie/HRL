@@ -20,11 +20,11 @@ class Difficulty:
     def __init__(self, level: Literal["EASY", "MEDIUM"]):
         if level == "EASY":
             self.n_resources: Literal[2, 4] = 2
-            self.env: Literal["polygon", "square"] = "square"
+            self.type_env: Literal["polygon", "square"] = "square"
 
         if level == "MEDIUM":
             self.n_resources: Literal[2, 4] = 4
-            self.env: Literal["polygon", "square"] = "polygon"
+            self.type_env: Literal["polygon", "square"] = "polygon"
 
 
 @dataclass
@@ -67,7 +67,7 @@ class Cst_env:
                             Point(10, 10),
                             Point(0, 10),]
         
-        self.coord_env = coord_env_polygon if difficulty.env == "polygon" else coord_env_square
+        self.coord_env = coord_env_polygon if difficulty.type_env == "polygon" else coord_env_square
         
         four_resources: List[ResourceDC] = [
             ResourceDC(x=0.5, y=4.25, r=0.3, color='red'),
@@ -90,7 +90,33 @@ class Cst_env:
         self.height = np.max(coord_env_y) - np.min(coord_env_y)
 
 
+HomeostaticT = type(torch.Tensor())  # Size 6
+
+class Cst_agent:
+    def __init__(self, difficulty: Difficulty):
+        self.walking_speed = 0.1
+
+        # Homeostatic setpoint
+        # Resources 1, 2, 3 and 4, muscular fatigue, aware energy
+        x_star_4_resources = torch.Tensor([1, 2, 3, 4, 0, 0])
+        x_star_2_resources = torch.Tensor([1, 2, 0, 0])
+        self.x_star: HomeostaticT = x_star_4_resources \
+            if difficulty.n_resources == 4 else x_star_2_resources
+
+        # Parameters of the function f
+        # Resources 1, 2, 3 and 4, muscular fatigue, aware energy, x, y
+        self.coef_hertz: HomeostaticT = torch.Tensor(
+            [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
+        
+
+class Cst_algo:
+    def __init__(self):
+        self.time_step = 1
+
+
 class Hyperparam:
     def __init__(self, level: Literal["EASY", "MEDIUM"]):
         self.difficulty = Difficulty(level)
         self.cst_env = Cst_env(self.difficulty)
+        self.cst_agent = Cst_agent(self.difficulty)
+        self.cst_algo = Cst_algo()

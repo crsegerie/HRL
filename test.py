@@ -89,7 +89,7 @@ class TestHRL(unittest.TestCase):
         env = Environment(hyperparam)
 
         agent = Agent(hyperparam)
-        actions = Actions(hyperparam, agent)
+        actions = Actions(hyperparam)
         net_J = Net_J(shape_zeta=agent.zeta.shape)
         net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=actions.n_actions)
         algo = Algorithm(hyperparam, env, agent, actions, net_J, net_f)
