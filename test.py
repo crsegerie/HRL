@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-from utils import set_all_seeds, Difficulty
+from utils import set_all_seeds, Difficulty, Hyperparam
 from environment import Environment
 from agent import Agent
 from actions import Actions
@@ -19,8 +19,8 @@ class TestEnvironnement(unittest.TestCase):
 
     def test_is_point_inside_easy(self):
         """EASY: 10x10 square environment."""
-        difficulty = Difficulty(level="EASY")
-        env = Environment(difficulty)
+        hyperparam = Hyperparam(level="EASY")
+        env = Environment(hyperparam)
 
         Points = [
             (-1, 1, False),
@@ -33,42 +33,43 @@ class TestEnvironnement(unittest.TestCase):
             self.assertEqual(env.is_point_inside(x, y), inside)
 
     def test_is_point_inside_medium(self):
-        difficulty = Difficulty(level="MEDIUM")
-        env = Environment(difficulty)
+        hyperparam = Hyperparam(level="MEDIUM")
+        env = Environment(hyperparam)
 
         Points = [
-            (1.1, 1.1, True), # up right A
-            (0.9, 0.9, False), # down left A
-            (0.9, 5, False), # left B
-            (1.1, 4.9, True), # right down B
+            (0.1, 1.1, True), # up right A
+            (-0.1, 0.9, False), # down left A
+            (-0.1, 5, False), # left B
+            (0.1, 4.9, True), # right down B
         ]
 
         for (x, y, inside) in Points:
             self.assertEqual(env.is_point_inside(x, y), inside)
 
     def test_is_segment_inside_medium(self):
-        difficulty = Difficulty(level="MEDIUM")
-        env = Environment(difficulty)
+        hyperparam = Hyperparam(level="MEDIUM")
+        env = Environment(hyperparam)
 
         segments = [
             # xa, ya, xb, yb,
-            (1.1, 1.1, 0.9, 0.9, False), # up right A - down left A
-            (0.9, 0.9, 1.1, 1.1, False), # down left A - up right A
-            (0.9, 0.9, 1.1, 4.9, False), # down left A - right down B
-            (1.1, 1.1, 1.1, 4.9, True), # up right A - right down B
-            (1.1, 1.1, 1.1, 5.1, False), # up right A - right up B
-            (1.5, 1.5, 1.5, 4.5, True), # other test
-            (1.5, 4.5, 1.5, 1.5, True), # other test
-            (1.5, 6.5, 1.5, 1.5, False), # other test
+            (0.1, 1.1, -0.1, 0.9, False), # up right A - down left A
+            (-0.1, 0.9, 0.1, 1.1, False), # down left A - up right A
+            (-0.1, 0.9, 0.1, 4.9, False), # down left A - right down B
+            (0.1, 1.1, 0.1, 4.9, True), # up right A - right down B
+            (0.1, 1.1, 0.1, 5.1, False), # up right A - right up B
+            (0.5, 1.5, 0.5, 4.5, True), # other test
+            (0.5, 4.5, 0.5, 1.5, True), # other test
+            (0.5, 6.5, 0.5, 1.5, False), # other test
         ]
 
         for (xa, ya, xb, yb, inside) in segments:
             self.assertEqual(env.is_segment_inside(xa, xb, ya, yb), inside)
 
     def test_visualization_env_medium(self):
-        difficulty = Difficulty(level="MEDIUM")
-        env = Environment(difficulty)
+        hyperparam = Hyperparam(level="MEDIUM")
+        env = Environment(hyperparam)
 
+        # TODO: Trouver automatiquement le 90 et le 60 (et en plus ce n'est plus 90 mais 80)
         values = np.zeros((90, 60))
         for i in range(90): # x
             for j in range(60): # y
@@ -86,7 +87,9 @@ class TestHRL(unittest.TestCase):
 
         difficulty = Difficulty(level="MEDIUM")
 
-        env = Environment(difficulty)
+        hyperparam = Hyperparam(level="MEDIUM")
+        env = Environment(hyperparam)
+
         agent = Agent(difficulty)
         actions = Actions(difficulty, agent)
         net_J = Net_J(shape_zeta=agent.zeta.shape)

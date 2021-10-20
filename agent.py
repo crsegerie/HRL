@@ -117,7 +117,7 @@ class Agent:
         # UTILS ##################################################
 
         # Setting initial position
-        self.zeta: Zeta = Zeta(difficulty=difficulty, x=3, y=2)
+        self.zeta: Zeta = Zeta(difficulty=difficulty, x=2, y=2)
 
     def drive(self, zeta: Zeta, epsilon: float = 0.001):
         """

@@ -252,8 +252,8 @@ class Algorithm:
         --------
         is_inside: np.ndarray
         """
-        n_X = self.env.width*scale
-        n_Y = self.env.height*scale
+        n_X = self.env.cst.width*scale
+        n_Y = self.env.cst.height*scale
         values = np.empty((n_X, n_Y))
         values.fill(np.nan)
         is_inside = np.zeros((n_X, n_Y))
@@ -280,8 +280,8 @@ class Algorithm:
 
         self.net_J.eval()
 
-        n_X = self.env.width * scale
-        n_Y = self.env.height * scale
+        n_X = self.env.cst.width * scale
+        n_Y = self.env.cst.height * scale
         values = np.empty((n_X, n_Y))
         values.fill(np.nan)
         # We could optimize this plot by using a batch with each element of

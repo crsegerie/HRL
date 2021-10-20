@@ -1,74 +1,15 @@
-from typing import List
-from dataclasses import dataclass
+from utils import Hyperparam, Point
 
-from utils import Difficulty
+from typing import List
 
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 
 
-@dataclass
-class Point:
-    """Point delimiting the boundaries of the environment."""
-    x: float
-    y: float
-
-
-@dataclass
-class ResourceDC:
-    """Resource representing a type of resource in the environment."""
-    x: float
-    y: float
-    r: float
-    color: str
-
-
 class Environment:
-    def __init__(self, difficulty : Difficulty):
-        # Simulation
-        coord_env_polygon = [Point(1, 1),
-                             Point(1, 5),
-                             Point(2, 5),
-                             Point(2, 3),
-                             Point(3, 3),
-                             Point(3, 4),
-                             Point(4, 4),
-                             Point(4, 6),
-                             Point(9, 6),
-                             Point(9, 5),
-                             Point(6, 5),
-                             Point(6, 3),
-                             Point(7, 3),
-                             Point(7, 0),
-                             Point(6, 0),
-                             Point(6, 2),
-                             Point(5, 2),
-                             Point(5, 1)]
-
-        coord_env_square = [Point(0, 0),
-                            Point(10, 0),
-                            Point(10, 10),
-                            Point(0, 10),]
-        
-        self.coord_env = coord_env_polygon if difficulty.env == "polygon" else coord_env_square
-        
-        four_resources: List[ResourceDC] = [
-            ResourceDC(x=1.5, y=4.25, r=0.3, color='red'),
-            ResourceDC(x=4.5, y=1.5, r=0.3, color='blue'),
-            ResourceDC(x=8, y=5.5, r=0.3, color='orange'),
-            ResourceDC(x=6.5, y=0.75, r=0.3, color='green'),
-        ]
-
-        two_resources: List[ResourceDC] = [
-            ResourceDC(x=1.5, y=4.25, r=0.3, color='red'),
-            ResourceDC(x=4.5, y=1.5, r=0.3, color='blue'),
-        ]
-        
-        self.resources = two_resources if difficulty.n_resources == 2 else four_resources
-        
-        self.width = 9 if difficulty.env == "polygon" else 10
-        self.height = 6 if difficulty.env == "polygon" else 10
+    def __init__(self, hyperparam : Hyperparam):
+        self.cst = hyperparam.cst_env
 
     def is_point_inside(self, x: float, y: float) -> bool:
         """Check if a point (x,y) is inside the polygon.
@@ -78,7 +19,7 @@ class Environment:
 
         # It allows no to treat the last case from
         # the end to the beginning separately
-        coords = self.coord_env + [self.coord_env[0]]
+        coords = self.cst.coord_env + [self.cst.coord_env[0]]
         n_left = 0
 
         def is_left(x0, y0, y1):
@@ -106,7 +47,7 @@ class Environment:
 
         # It allows no to treat the last case from
         # the end to the beginning separately
-        coords = self.coord_env + [self.coord_env[0]]
+        coords = self.cst.coord_env + [self.cst.coord_env[0]]
 
         def point_in_seg(point: Point, A: Point, B: Point):
             """Check if a point on the line AB is actually
@@ -169,7 +110,7 @@ class Environment:
     def distance_to_resource(self, x: float, y: float, res: int, norm: str = "L1") -> float:
         if norm not in ["L1", "L2"]:
             raise ValueError("norm should be 'L1' or 'L2'.")
-        diff = np.array([x - self.resources[res].x, y - self.resources[res].y])
+        diff = np.array([x - self.cst.resources[res].x, y - self.cst.resources[res].y])
         if norm == "L1":
             dist = np.linalg.norm(diff, ord=1)
         elif norm == "L2":
@@ -178,17 +119,17 @@ class Environment:
 
     def is_near_resource(self, x: float, y: float, res: int) -> bool:
         dist = self.distance_to_resource(x, y, res)
-        radius = self.resources[res].r**2
+        radius = self.cst.resources[res].r**2
         return dist < radius
 
     def is_resource_visible(self, x: float, y: float, res: int) -> bool:
-        xb = self.resources[res].x
-        yb = self.resources[res].y
+        xb = self.cst.resources[res].x
+        yb = self.cst.resources[res].y
         return self.is_segment_inside(x, xb, y, yb)
 
     def plot_resources(self, ax, scale: int, resources: List[int]=[0, 1, 2, 3]):
         """Add circles representing the resources on the plot."""
-        for c_i, resource in enumerate(self.resources):
+        for c_i, resource in enumerate(self.cst.resources):
             if c_i in resources:
                 x = resource.x * scale
                 y = resource.y * scale
@@ -212,13 +153,12 @@ class Environment:
         -------
         Returns nothing. Only inplace update ax.
         """
-        coords = self.coord_env
         if ax is None:
             ax = plt.subplot(111)
 
         # It allows no to treat the last case from
         # the end to the beginning separately
-        coords = self.coord_env + [self.coord_env[0]]
+        coords = self.cst.coord_env + [self.cst.coord_env[0]]
 
         for i, point in enumerate(coords[:-1]):
             ax.plot([point.x, coords[i + 1].x],

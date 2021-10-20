@@ -2,12 +2,14 @@ import os
 import random
 import numpy as np
 import torch
-from typing import Literal
+
+from typing import Literal, List
+
+from dataclasses import dataclass
 
 
 def set_all_seeds(seed):
     random.seed(seed)
-    # os.environ('PYTHONHASHSEED') = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -16,7 +18,6 @@ def set_all_seeds(seed):
 
 class Difficulty:
     def __init__(self, level: Literal["EASY", "MEDIUM"]):
-
         if level == "EASY":
             self.n_resources: Literal[2, 4] = 2
             self.env: Literal["polygon", "square"] = "square"
@@ -25,3 +26,71 @@ class Difficulty:
             self.n_resources: Literal[2, 4] = 4
             self.env: Literal["polygon", "square"] = "polygon"
 
+
+@dataclass
+class Point:
+    """Point delimiting the boundaries of the environment."""
+    x: float
+    y: float
+
+@dataclass
+class ResourceDC:
+    """Resource representing a type of resource in the environment."""
+    x: float
+    y: float
+    r: float
+    color: str
+
+class Cst_env:
+    def __init__(self, difficulty: Difficulty):
+        coord_env_polygon = [Point(0, 1),
+                             Point(0, 5),
+                             Point(1, 5),
+                             Point(1, 3),
+                             Point(2, 3),
+                             Point(2, 4),
+                             Point(3, 4),
+                             Point(3, 6),
+                             Point(8, 6),
+                             Point(8, 5),
+                             Point(5, 5),
+                             Point(5, 3),
+                             Point(6, 3),
+                             Point(6, 0),
+                             Point(5, 0),
+                             Point(5, 2),
+                             Point(4, 2),
+                             Point(4, 1)]
+
+        coord_env_square = [Point(0, 0),
+                            Point(10, 0),
+                            Point(10, 10),
+                            Point(0, 10),]
+        
+        self.coord_env = coord_env_polygon if difficulty.env == "polygon" else coord_env_square
+        
+        four_resources: List[ResourceDC] = [
+            ResourceDC(x=0.5, y=4.25, r=0.3, color='red'),
+            ResourceDC(x=3.5, y=1.5, r=0.3, color='blue'),
+            ResourceDC(x=7, y=5.5, r=0.3, color='orange'),
+            ResourceDC(x=5.5, y=0.75, r=0.3, color='green'),
+        ]
+
+        two_resources: List[ResourceDC] = [
+            ResourceDC(x=0.5, y=4.25, r=0.3, color='red'),
+            ResourceDC(x=3.5, y=1.5, r=0.3, color='blue'),
+        ]
+        
+        self.resources = two_resources if difficulty.n_resources == 2 else four_resources
+        
+        coord_env_x = [point.x for point in self.coord_env]
+        coord_env_y = [point.y for point in self.coord_env]
+
+        self.width = np.max(coord_env_x) - np.min(coord_env_x)
+        self.height = np.max(coord_env_y) - np.min(coord_env_y)
+
+
+class Hyperparam:
+    def __init__(self, level: Literal["EASY", "MEDIUM"]):
+        self.difficulty = Difficulty(level)
+        self.cst_env = Cst_env(self.difficulty)

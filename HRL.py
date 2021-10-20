@@ -13,7 +13,7 @@ import argparse
 
 from typing import Literal
 
-from utils import set_all_seeds, Difficulty
+from utils import set_all_seeds, Difficulty, Hyperparam
 from environment import Environment
 from agent import Agent
 from actions import Actions
@@ -56,8 +56,9 @@ def main(argv):
     set_all_seeds(args.seed)
     
     difficulty = Difficulty(level=args.difficulty)
+    hyperparam = Hyperparam(level=args.difficulty)
 
-    env = Environment(difficulty)
+    env = Environment(hyperparam)
     agent = Agent(difficulty)
     actions = Actions(difficulty, agent)
     net_J = Net_J(shape_zeta=agent.zeta.shape)
