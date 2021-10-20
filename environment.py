@@ -9,7 +9,7 @@ from matplotlib.patches import Circle
 
 class Environment:
     def __init__(self, hyperparam : Hyperparam):
-        self.cst = hyperparam.cst_env
+        self.hp = hyperparam
 
     def is_point_inside(self, x: float, y: float) -> bool:
         """Check if a point (x,y) is inside the polygon.
@@ -19,7 +19,7 @@ class Environment:
 
         # It allows no to treat the last case from
         # the end to the beginning separately
-        coords = self.cst.coord_env + [self.cst.coord_env[0]]
+        coords = self.hp.cst_env.coord_env + [self.hp.cst_env.coord_env[0]]
         n_left = 0
 
         def is_left(x0, y0, y1):
@@ -47,7 +47,7 @@ class Environment:
 
         # It allows no to treat the last case from
         # the end to the beginning separately
-        coords = self.cst.coord_env + [self.cst.coord_env[0]]
+        coords = self.hp.cst_env.coord_env + [self.hp.cst_env.coord_env[0]]
 
         def point_in_seg(point: Point, A: Point, B: Point):
             """Check if a point on the line AB is actually
@@ -110,7 +110,7 @@ class Environment:
     def distance_to_resource(self, x: float, y: float, res: int, norm: str = "L1") -> float:
         if norm not in ["L1", "L2"]:
             raise ValueError("norm should be 'L1' or 'L2'.")
-        diff = np.array([x - self.cst.resources[res].x, y - self.cst.resources[res].y])
+        diff = np.array([x - self.hp.cst_env.resources[res].x, y - self.hp.cst_env.resources[res].y])
         if norm == "L1":
             dist = np.linalg.norm(diff, ord=1)
         elif norm == "L2":
@@ -119,17 +119,17 @@ class Environment:
 
     def is_near_resource(self, x: float, y: float, res: int) -> bool:
         dist = self.distance_to_resource(x, y, res)
-        radius = self.cst.resources[res].r**2
+        radius = self.hp.cst_env.resources[res].r**2
         return dist < radius
 
     def is_resource_visible(self, x: float, y: float, res: int) -> bool:
-        xb = self.cst.resources[res].x
-        yb = self.cst.resources[res].y
+        xb = self.hp.cst_env.resources[res].x
+        yb = self.hp.cst_env.resources[res].y
         return self.is_segment_inside(x, xb, y, yb)
 
     def plot_resources(self, ax, scale: int, resources: List[int]=[0, 1, 2, 3]):
         """Add circles representing the resources on the plot."""
-        for c_i, resource in enumerate(self.cst.resources):
+        for c_i, resource in enumerate(self.hp.cst_env.resources):
             if c_i in resources:
                 x = resource.x * scale
                 y = resource.y * scale
@@ -158,7 +158,7 @@ class Environment:
 
         # It allows no to treat the last case from
         # the end to the beginning separately
-        coords = self.cst.coord_env + [self.cst.coord_env[0]]
+        coords = self.hp.cst_env.coord_env + [self.hp.cst_env.coord_env[0]]
 
         for i, point in enumerate(coords[:-1]):
             ax.plot([point.x, coords[i + 1].x],

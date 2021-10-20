@@ -55,15 +55,14 @@ def main(argv):
 
     set_all_seeds(args.seed)
     
-    difficulty = Difficulty(level=args.difficulty)
     hyperparam = Hyperparam(level=args.difficulty)
 
     env = Environment(hyperparam)
-    agent = Agent(difficulty)
-    actions = Actions(difficulty, agent)
+    agent = Agent(hyperparam)
+    actions = Actions(hyperparam, agent)
     net_J = Net_J(shape_zeta=agent.zeta.shape)
     net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=actions.n_actions)
-    algo = Algorithm(difficulty, env, agent, actions, net_J, net_f)
+    algo = Algorithm(hyperparam, env, agent, actions, net_J, net_f)
 
     algo.N_iter = args.num_iter
     algo.N_print = args.freq_print

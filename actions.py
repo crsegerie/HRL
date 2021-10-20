@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from environment import Environment
 from agent import ZetaTensorT, Zeta, Agent
-from utils import Difficulty
+from utils import Hyperparam
 
 import torch
 import numpy as np
@@ -17,9 +17,9 @@ class Actions:
     in its environment.
     """
 
-    def __init__(self, difficulty: Difficulty, agent: Agent) -> None:
+    def __init__(self, hyperparam: Hyperparam, agent: Agent) -> None:
 
-        self.difficulty = difficulty
+        self.hp = hyperparam
 
         # Minimum duration for the action of sleeping
         self.n_min_time_sleep = 1000
@@ -41,19 +41,19 @@ class Actions:
                 raise ValueError('direction should be right, left, up or down.')
             elif direction == 'right':
                 control_walking = torch.tensor(
-                    [0.]*difficulty.n_resources + [0.01, 0., agent.walking_speed, 0.])
+                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., agent.walking_speed, 0.])
             elif direction == 'left':
                 control_walking = torch.tensor(
-                    [0.]*difficulty.n_resources + [0.01, 0., -agent.walking_speed, 0.])
+                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., -agent.walking_speed, 0.])
             elif direction == 'up':
                 control_walking = torch.tensor(
-                    [0.]*difficulty.n_resources + [0.01, 0., 0., agent.walking_speed])
+                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., 0., agent.walking_speed])
             elif direction == 'down':
                 control_walking = torch.tensor(
-                    [0.]*difficulty.n_resources + [0.01, 0., 0., -agent.walking_speed])
+                    [0.]*self.hp.difficulty.n_resources + [0.01, 0., 0., -agent.walking_speed])
 
             def new_state_walking(agent: Agent, env: Environment) -> Zeta:
-                new_zeta = Zeta(difficulty)
+                new_zeta = Zeta(self.hp)
                 new_zeta.tensor = agent.euler_method(agent.zeta, control_walking)
                 return new_zeta
 
@@ -81,9 +81,9 @@ class Actions:
         # ACTION OF SLEEPING
 
         def new_state_sleeping(agent: Agent, env: Environment) -> Zeta:
-            control_sleeping = torch.tensor([0.]*difficulty.n_resources + [0., -0.001, 0., 0.])
+            control_sleeping = torch.tensor([0.]*self.hp.difficulty.n_resources + [0., -0.001, 0., 0.])
             duration_sleep = self.n_min_time_sleep * agent.time_step
-            new_zeta = Zeta(difficulty)
+            new_zeta = Zeta(self.hp)
             new_zeta.tensor = agent.integrate_multiple_steps(
                 duration_sleep, agent.zeta, control_sleeping)
             return new_zeta
@@ -104,7 +104,7 @@ class Actions:
 
         def new_state_doing_nothing(agent: Agent, env: Environment) -> Zeta:
             control_doing_nothing = torch.tensor([0.]*agent.zeta.shape)
-            new_zeta = Zeta(difficulty)
+            new_zeta = Zeta(self.hp)
             new_zeta.tensor = agent.euler_method(agent.zeta, control_doing_nothing)
             return new_zeta
 
@@ -123,14 +123,14 @@ class Actions:
         # USEFUL FOR ACTIONS OF CONSUMING A RESOURCE
 
         def new_state_and_constraints_consuming_resource(res: int):
-            if (res < 0) or (res >= difficulty.n_resources):
+            if (res < 0) or (res >= self.hp.difficulty.n_resources):
                 raise ValueError('res should be between 0 and n_resources-1.')
             else:
                 def new_state_consuming_resource(agent: Agent, env: Environment) -> Zeta:
                     control_consuming_resource = [0.]*agent.zeta.shape
                     control_consuming_resource[res] = 0.1
                     control_consuming_resource = torch.tensor(control_consuming_resource)
-                    new_zeta = Zeta(difficulty)
+                    new_zeta = Zeta(self.hp)
                     new_zeta.tensor = agent.euler_method(agent.zeta, control_consuming_resource)
                     return new_zeta
 
@@ -143,7 +143,7 @@ class Actions:
         
         # ACTIONS OF CONSUMING A RESOURCE
 
-        for res in range(difficulty.n_resources):
+        for res in range(self.hp.difficulty.n_resources):
             new_state_consuming_resource, constraints_consuming_resource = new_state_and_constraints_consuming_resource(res)
             action_consuming_resource = {
                 "name": f"consuming_resource_{res}",
@@ -157,20 +157,20 @@ class Actions:
         # USEFUL FOR ACTIONS OF GOING TO A RESOURCE
 
         def new_state_and_constraints_going_to_resource(res: int):
-            if (res < 0) or (res >= difficulty.n_resources):
+            if (res < 0) or (res >= self.hp.difficulty.n_resources):
                 raise ValueError('res should be between 0 and n_resources-1.')
             else:
                 def new_state_going_to_resource(agent: Agent, env: Environment) -> Zeta:
                     control_going_to_resource = torch.tensor(
-                        [0.]*difficulty.n_resources + [0.01, 0., 0., 0.])
+                        [0.]*self.hp.difficulty.n_resources + [0.01, 0., 0., 0.])
                     dist = env.distance_to_resource(agent.zeta.x, agent.zeta.y, res)
                     duration_walking = dist * agent.time_step / agent.walking_speed
 
-                    new_zeta = Zeta(difficulty)
+                    new_zeta = Zeta(self.hp)
                     new_zeta.tensor = agent.integrate_multiple_steps(
                         duration_walking, agent.zeta, control_going_to_resource)
-                    new_zeta.x = env.cst.resources[res].x
-                    new_zeta.y = env.cst.resources[res].y
+                    new_zeta.x = self.hp.cst_env.resources[res].x
+                    new_zeta.y = self.hp.cst_env.resources[res].y
 
                     return new_zeta
 
@@ -185,7 +185,7 @@ class Actions:
 
         # ACTIONS OF GOING TO A RESOURCE
 
-        for res in range(difficulty.n_resources):
+        for res in range(self.hp.difficulty.n_resources):
             new_state_going_to_resource, constraints_going_to_resource = new_state_and_constraints_going_to_resource(res)
             action_going_to_resource = {
                 "name": f"going_to_resource_{res}",

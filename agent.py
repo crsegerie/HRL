@@ -1,4 +1,4 @@
-from utils import Difficulty
+from utils import Hyperparam
 import torch
 
 ZetaTensorT = type(torch.Tensor())  # Size 8
@@ -9,7 +9,7 @@ HomeostaticT = type(torch.Tensor())  # Size 6
 class Zeta:
     """Internal and external state of the agent."""
 
-    def __init__(self, difficulty: Difficulty, x=None, y=None) -> None:
+    def __init__(self, hyperparam: Hyperparam, x=None, y=None) -> None:
         """zeta : torch.tensor
         
         homeostatic:
@@ -26,9 +26,9 @@ class Zeta:
 
         Be aware that zeta[:6] is homeostatic and that zeta[6:] aren't.    
         """
-        self.difficulty: Difficulty = difficulty
+        self.hp = hyperparam
 
-        self.n_homeostatic = self.difficulty.n_resources + 2 # muscle, aware
+        self.n_homeostatic = self.hp.difficulty.n_resources + 2 # muscle, aware
         self.shape = self.n_homeostatic + 2 # for both coordinates x, y
         self.tensor: ZetaTensorT = torch.zeros(self.shape)
         self.x_indice = self.n_homeostatic + 0
@@ -41,16 +41,16 @@ class Zeta:
             
 
     def resource(self, resource_i: int):
-        assert resource_i < self.difficulty.n_resources
+        assert resource_i < self.hp.difficulty.n_resources
         return float(self.tensor[resource_i])
 
     @property
     def muscular_fatigue(self) -> float:
-        return float(self.tensor[self.difficulty.n_resources + 0])
+        return float(self.tensor[self.hp.difficulty.n_resources + 0])
 
     @property
     def aware_energy(self) -> float:
-        return float(self.tensor[self.difficulty.n_resources + 1])
+        return float(self.tensor[self.hp.difficulty.n_resources + 1])
 
     @property
     def x(self) -> float:
@@ -80,7 +80,7 @@ class Zeta:
 
 
 class Agent:
-    def __init__(self, difficulty: Difficulty):
+    def __init__(self, hyperparam: Hyperparam):
         """Initialize the Agent.
 
         ...
@@ -107,17 +107,17 @@ class Agent:
         x_star_2_resources = torch.Tensor([1, 2, 0, 0])
 
         self.x_star: HomeostaticT = x_star_4_resources \
-            if difficulty.n_resources == 4 else x_star_2_resources
+            if hyperparam.difficulty.n_resources == 4 else x_star_2_resources
 
         # parameters of the function f
         # same + x, y
         self.coef_hertz: HomeostaticT = torch.Tensor(
-            [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
+            [-0.05]*hyperparam.difficulty.n_resources +[-0.008, 0.0005])
 
         # UTILS ##################################################
 
         # Setting initial position
-        self.zeta: Zeta = Zeta(difficulty=difficulty, x=2, y=2)
+        self.zeta: Zeta = Zeta(hyperparam=hyperparam, x=2, y=2)
 
     def drive(self, zeta: Zeta, epsilon: float = 0.001):
         """

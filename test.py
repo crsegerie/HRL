@@ -85,16 +85,14 @@ class TestHRL(unittest.TestCase):
         seed = 0
         set_all_seeds(seed)
 
-        difficulty = Difficulty(level="MEDIUM")
-
         hyperparam = Hyperparam(level="MEDIUM")
         env = Environment(hyperparam)
 
-        agent = Agent(difficulty)
-        actions = Actions(difficulty, agent)
+        agent = Agent(hyperparam)
+        actions = Actions(hyperparam, agent)
         net_J = Net_J(shape_zeta=agent.zeta.shape)
         net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=actions.n_actions)
-        algo = Algorithm(difficulty, env, agent, actions, net_J, net_f)
+        algo = Algorithm(hyperparam, env, agent, actions, net_J, net_f)
 
         algo.simulation()
         _zeta_tensor = algo.agent.zeta.tensor

@@ -1,5 +1,5 @@
 from typing import Any, Dict, Literal, List
-from utils import Difficulty
+from utils import Hyperparam
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ from nets import Net_J, Net_f
 
 
 class Algorithm:
-    def __init__(self, difficulty: Difficulty, env: Environment, agent: Agent,
+    def __init__(self, hyperparam: Hyperparam, env: Environment, agent: Agent,
                  actions: Actions, net_J: Net_J, net_f: Net_f):
 
         # ALGOS METAPARAMETERS ##################################
@@ -39,6 +39,7 @@ class Algorithm:
         self.N_save_weights = 1000
 
         # CLASSES #########################################
+        self.hp = hyperparam
         self.env = env
         self.agent = agent
         self.actions = actions
@@ -46,7 +47,6 @@ class Algorithm:
         self.net_f = net_f
 
         # UTILS ############################################
-        self.difficulty = difficulty
         self.optimizer_J = torch.optim.Adam(
             self.net_J.parameters(), lr=self.learning_rate)
         self.optimizer_f = torch.optim.Adam(
@@ -110,7 +110,7 @@ class Algorithm:
         # requires_grad of the parameters you want to freeze to False.
         f = self.net_f.forward(zeta_u).detach()
         new_zeta_tensor = _zeta_tensor + self.agent.time_step * f
-        new_zeta = Zeta(self.difficulty)
+        new_zeta = Zeta(self.hp)
         new_zeta.tensor = new_zeta_tensor
         instant_reward = self.agent.drive(new_zeta)
         grad_ = torch.autograd.grad(
@@ -175,7 +175,7 @@ class Algorithm:
             [_zeta, torch.zeros(self.actions.n_actions)])
         zeta_u[len(_zeta) + action] = 1
 
-        new_zeta = Zeta(self.difficulty)
+        new_zeta = Zeta(self.hp)
         new_zeta.tensor = self.actions.df.loc[action, "new_state"](self.agent, self.env).tensor
         _new_zeta = new_zeta.tensor
         
@@ -202,7 +202,7 @@ class Algorithm:
         # and long-term improvements are in the same direction)
 
         # futur drive = d(\zeta_t, u_a) = 0.9
-        new_zeta = Zeta(self.difficulty)
+        new_zeta = Zeta(self.hp)
         new_zeta.tensor = _new_zeta
         instant_drive = self.agent.drive(new_zeta)
 
@@ -252,8 +252,8 @@ class Algorithm:
         --------
         is_inside: np.ndarray
         """
-        n_X = self.env.cst.width*scale
-        n_Y = self.env.cst.height*scale
+        n_X = self.hp.cst_env.width*scale
+        n_Y = self.hp.cst_env.height*scale
         values = np.empty((n_X, n_Y))
         values.fill(np.nan)
         is_inside = np.zeros((n_X, n_Y))
@@ -280,8 +280,8 @@ class Algorithm:
 
         self.net_J.eval()
 
-        n_X = self.env.cst.width * scale
-        n_Y = self.env.cst.height * scale
+        n_X = self.hp.cst_env.width * scale
+        n_Y = self.hp.cst_env.height * scale
         values = np.empty((n_X, n_Y))
         values.fill(np.nan)
         # We could optimize this plot by using a batch with each element of
@@ -294,7 +294,7 @@ class Algorithm:
                     # but one resources varies alongside with the coordinates.
                     # No muscular nor energic fatigues.
                     zeta = torch.Tensor(
-                        [0.] * self.difficulty.n_resources + [0., 0., i/scale, j/scale])
+                        [0.] * self.hp.difficulty.n_resources + [0., 0., i/scale, j/scale])
                     zeta[resource_id] = -self.agent.x_star[resource_id]
                     values[i, j] = self.net_J(zeta).detach().numpy()
 
@@ -321,7 +321,7 @@ class Algorithm:
         Warning : abscisse is not time but step!
         """
 
-        zeta_meaning = [f"resource_{i}" for i in range(self.difficulty.n_resources)] + \
+        zeta_meaning = [f"resource_{i}" for i in range(self.hp.difficulty.n_resources)] + \
             [
             "muscular energy",
             "aware energy",
@@ -426,9 +426,9 @@ class Algorithm:
         ax_env = plt.subplot2grid(shape, (1, 0), colspan=2, rowspan=2)
         ax_loss = plt.subplot2grid(shape, (1, 2), colspan=2, rowspan=2)
 
-        axs_J = [None]*self.difficulty.n_resources
+        axs_J = [None]*self.hp.difficulty.n_resources
 
-        for resource in range(self.difficulty.n_resources):
+        for resource in range(self.hp.difficulty.n_resources):
             axs_J[resource] = plt.subplot2grid(shape, (3, resource))
 
         last_action = self.historic_actions[frame]
@@ -443,7 +443,7 @@ class Algorithm:
         self.plot_ressources(ax=ax_resource, frame=frame)
         self.plot_loss(ax=ax_loss, frame=frame)
 
-        for resource_id in range(self.difficulty.n_resources):
+        for resource_id in range(self.hp.difficulty.n_resources):
             self.plot_J(ax=axs_J[resource_id],
                         fig=fig, resource_id=resource_id,
                         scale=scale, is_inside=is_inside)
