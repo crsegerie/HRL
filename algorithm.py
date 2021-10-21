@@ -1,22 +1,19 @@
-from typing import Any, Dict, Literal, List
 from hyperparam import Hyperparam
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import Normalize
-from matplotlib.patches import Circle
-import pandas as pd
-
-
 from environment import Environment
 from agent import Agent, Zeta
 from actions import Actions
 from nets import Net_J, Net_f
+from plots import Plots
+
+from typing import List
+
+import numpy as np
+import torch
 
 
 class Algorithm:
     def __init__(self, hyperparam: Hyperparam, env: Environment, agent: Agent,
-                 actions: Actions, net_J: Net_J, net_f: Net_f):
+                 actions: Actions, net_J: Net_J, net_f: Net_f, plots: Plots):
 
         # CLASSES #########################################
         self.hp = hyperparam
@@ -25,6 +22,7 @@ class Algorithm:
         self.actions = actions
         self.net_J = net_J
         self.net_f = net_f
+        self.plots = plots
 
         # UTILS ############################################
         self.optimizer_J = torch.optim.Adam(
@@ -204,236 +202,35 @@ class Algorithm:
 
         self.agent.zeta.tensor = _new_zeta
 
-        if (k % self.hp.cst_algo.N_print) == 0:
-            print("Iteration:", k, "/", self.hp.cst_algo.N_iter - 1)
-            print("Action:", action, self.actions.df.loc[action, "name"])
-            print("zeta:", _zeta)
-            print("")
-
-        if (k % self.hp.cst_algo.N_save_weights) == 0:
-            torch.save(self.net_J.state_dict(), 'weights/weights_net_J')
-            torch.save(self.net_f.state_dict(), 'weights/weights_net_f')
-
         loss = np.array([Loss_f.detach().numpy(), Loss_J.detach().numpy()[0]])
-        return action, loss
-
-    def compute_mask(self, scale: int):
-        """Compute the mask indicating if a discretized value is inside
-        or outside the environment.
-
-        Parameters:
-        -----------
-        scale: int
-
-        Returns:
-        --------
-        is_inside: np.ndarray
-        """
-        n_X = self.hp.cst_env.width*scale
-        n_Y = self.hp.cst_env.height*scale
-        values = np.empty((n_X, n_Y))
-        values.fill(np.nan)
-        is_inside = np.zeros((n_X, n_Y))
-        for i in range(n_X):  # x
-            for j in range(n_Y):  # y
-                is_inside[i, j] = self.env.is_point_inside(i/scale, j/scale)
-        return is_inside
-
-    def plot_J(self, ax, fig, resource_id: int, scale: int, is_inside):
-        """Plot of the learned J function.
-
-        Parameters:
-        -----------
-        ax: SubplotBase
-        resource_i: int
-        scale: int
-            scale squared gives the number of plotted points for a unt square.
-        is_inside : np.ndarray
-
-        Returns:
-        --------
-        None
-        """
-
-        self.net_J.eval()
-
-        n_X = self.hp.cst_env.width * scale
-        n_Y = self.hp.cst_env.height * scale
-        values = np.empty((n_X, n_Y))
-        values.fill(np.nan)
-        # We could optimize this plot by using a batch with each element of
-        # the batch representing one pixel in the image.
-        # But this function represents only 1/8 of the total execution time.
-        for i in range(n_X):  # x
-            for j in range(n_Y):  # y
-                if is_inside[i, j]:  # TODO : use torch batch
-                    # We are at the optimum for three out of the 4 resources
-                    # but one resources varies alongside with the coordinates.
-                    # No muscular nor energic fatigues.
-                    zeta = torch.Tensor(
-                        [0.] * self.hp.difficulty.n_resources + [0., 0., i/scale, j/scale])
-                    zeta[resource_id] = -self.hp.cst_agent.x_star[resource_id]
-                    values[i, j] = self.net_J(zeta).detach().numpy()
-
-        im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
-        ax.axis('off')
-        ax.invert_yaxis()
-
-        self.env.plot_resources(ax, scale, resources=[resource_id])
-
-        ax.set_title(f'Deviation function (resource {resource_id} missing)')
-        cbar = fig.colorbar(im, extend='both', shrink=0.4, ax=ax)
-
-    def plot_ressources(self, ax, frame: int):
-        """Plot the resource historic as a function of time.
-
-        Parameters:
-        -----------
-        ax: SubplotBase
-        frame: int
-
-        Returns:
-        --------
-        None
-        Warning : abscisse is not time but step!
-        """
-
-        zeta_meaning = [f"resource_{i}" for i in range(self.hp.difficulty.n_resources)] + \
-            [
-            "muscular energy",
-            "aware energy",
-            "x",
-            "y",
-        ]
-
-        historic_zeta_tensor = [zeta.tensor.detach(
-        ).numpy() for zeta in self.historic_zeta[:frame+1]]
-
-        df = pd.DataFrame(historic_zeta_tensor, columns=zeta_meaning)
-        df.plot(ax=ax, grid=True, yticks=list(range(0, 10)))  # TODO
-        ax.set_ylabel('value')
-        ax.set_xlabel('frames')
-        ax.set_title("Evolution of the resource")
-
-    def plot_loss(self, ax, frame: int):
-        """Plot the loss in order to control the learning of the agent.
-
-        Parameters:
-        -----------
-        ax: SubplotBase
-        frame: int
-
-        Returns:
-        --------
-        None
-        Warning : abscisse is not time but step!
-        """
-
-        loss_meaning = [
-            "Loss of the transition function $L_f$",
-            "Loss of the deviation function $L_J$",
-        ]
-
-        df = pd.DataFrame(self.historic_losses[:frame+1],
-                          columns=loss_meaning)
-        df = df.rolling(window=self.hp.cst_algo.N_rolling).mean()
-        df.plot(ax=ax, grid=True, logy=True)
-        ax.set_ylabel('value of the losses')
-        ax.set_xlabel('frames')
-        ax.set_title(
-            f"Evolution of the log-loss (moving average with "
-            f"{self.hp.cst_algo.N_rolling} frames)")
-
-    def plot_position(self, ax, zeta: Zeta):
-        """Plot the position.
-
-        Parameters:
-        -----------
-        ax: SubplotBase
-        zeta: torch.tensor
-
-        Returns:
-        --------
-        None
-        Warning : abscisse is not time but step!
-        """
-        self.env.plot(ax=ax)  # initialisation of plt with background
-        x = zeta.x
-        y = zeta.y
-
-        color = "grey"
-        patch_circle = Circle((x, y), 0.2, color=color)
-        ax.add_patch(patch_circle)
-        ax.text(x, y, "agent")
-
-        ax.set_title("Position of the agent.")
-
-    def plot(self, frame: int, scale=5):
-        """Plot the position and the ressources of the agent.
-
-        - time, ressources, historic in transparence 
-        -> faire une fonction plot en dehors de l'agent
-
-
-        Parameters:
-        -----------
-        frame :int
-
-        Returns:
-        --------
-        None
-        """
-
-        is_inside = self.compute_mask(scale=scale)
-
-        zeta = self.historic_zeta[frame]
-
-        fig = plt.figure(figsize=(16, 16))
-        shape = (4, 4)
-        ax_resource = plt.subplot2grid(shape, (0, 0), colspan=4)
-        ax_env = plt.subplot2grid(shape, (1, 0), colspan=2, rowspan=2)
-        ax_loss = plt.subplot2grid(shape, (1, 2), colspan=2, rowspan=2)
-
-        axs_J = [None]*self.hp.difficulty.n_resources
-
-        for resource in range(self.hp.difficulty.n_resources):
-            axs_J[resource] = plt.subplot2grid(shape, (3, resource))
-
-        last_action = self.historic_actions[frame]
-
-        fig.suptitle(
-            (f'Dashboard. Frame: {frame} - last action: '
-                f'{last_action}: {self.actions.df.loc[last_action, "name"]} '),
-            fontsize=16)
-
-        self.plot_position(ax=ax_env, zeta=zeta)
-
-        self.plot_ressources(ax=ax_resource, frame=frame)
-        self.plot_loss(ax=ax_loss, frame=frame)
-
-        for resource_id in range(self.hp.difficulty.n_resources):
-            self.plot_J(ax=axs_J[resource_id],
-                        fig=fig, resource_id=resource_id,
-                        scale=scale, is_inside=is_inside)
-
-        plt.tight_layout()
-        name_fig = f"images/frame_{frame}"
-        plt.savefig(name_fig)
-        print(name_fig)
-        plt.close(fig)
+        return action, loss, _zeta
 
     def simulation(self):
 
         for k in range(self.hp.cst_algo.N_iter):
-            action, loss = self.simulation_one_step(k)
+            action, loss, _zeta = self.simulation_one_step(k)
 
             # save historic
             self.historic_zeta.append(self.agent.zeta)
             self.historic_actions.append(action)
             self.historic_losses.append(loss)
 
-            if k % self.hp.cst_algo.cycle_plot == 0:
-                self.plot(k)
+            if (k % self.hp.cst_algo.N_print) == 0:
+                print("Iteration:", k, "/", self.hp.cst_algo.N_iter - 1)
+                print("Action:", action, self.actions.df.loc[action, "name"])
+                print("zeta:", _zeta)
+                print("")
 
-        torch.save(self.net_J.state_dict(), 'weights/weights_net_J')
-        torch.save(self.net_f.state_dict(), 'weights/weights_net_f')
+            if k % self.hp.cst_algo.cycle_plot == 0:
+                self.plots.plot(frame=k,
+                                env=self.env,
+                                historic_zeta=self.historic_zeta,
+                                historic_actions=self.historic_actions,
+                                actions=self.actions,
+                                historic_losses=self.historic_losses,
+                                net_J=self.net_J)
+
+            if ((k % self.hp.cst_algo.N_save_weights) == 0) or (k == self.hp.cst_algo.N_iter-1):
+                torch.save(self.net_J.state_dict(), 'weights/weights_net_J')
+                torch.save(self.net_f.state_dict(), 'weights/weights_net_f')
+

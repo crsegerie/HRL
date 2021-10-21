@@ -19,6 +19,7 @@ from environment import Environment
 from agent import Agent
 from actions import Actions
 from nets import Net_J, Net_f
+from plots import Plots
 from algorithm import Algorithm
 
 import os
@@ -67,7 +68,8 @@ def main(argv):
     actions = Actions(hyperparam)
     net_J = Net_J(hyperparam)
     net_f = Net_f(hyperparam)
-    algo = Algorithm(hyperparam, env, agent, actions, net_J, net_f)
+    plots = Plots(hyperparam)
+    algo = Algorithm(hyperparam, env, agent, actions, net_J, net_f, plots)
 
     algo.simulation()
 
