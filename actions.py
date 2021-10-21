@@ -59,7 +59,7 @@ class Actions:
 
             def constraints_walking(agent: Agent, env: Environment) -> bool:
                 new_zeta = new_state_walking(agent, env)
-                return ((agent.zeta.aware_energy < self.max_tired) 
+                return ((agent.zeta.sleep_fatigue < self.max_tired) 
                         and (agent.zeta.muscular_fatigue < 6) 
                         and env.is_point_inside(new_zeta.x, new_zeta.y))
 
@@ -89,7 +89,7 @@ class Actions:
             return new_zeta
 
         def constraints_sleeping(agent: Agent, env: Environment) -> bool:
-            return (agent.zeta.aware_energy > 1)
+            return (agent.zeta.sleep_fatigue > 1)
 
         action_sleeping = {
             "name": "sleeping",
@@ -109,7 +109,7 @@ class Actions:
             return new_zeta
 
         def constraints_doing_nothing(agent: Agent, env: Environment) -> bool:
-            return (agent.zeta.aware_energy < self.max_tired)
+            return (agent.zeta.sleep_fatigue < self.max_tired)
 
         action_doing_nothing = {
             "name": "doing_nothing",
@@ -135,7 +135,7 @@ class Actions:
                     return new_zeta
 
                 def constraints_consuming_resource(agent: Agent, env: Environment) -> bool:
-                    return ((agent.zeta.aware_energy < self.max_tired)
+                    return ((agent.zeta.sleep_fatigue < self.max_tired)
                             and env.is_near_resource(agent.zeta.x, agent.zeta.y, res)
                             and (agent.zeta.resource(res) < 8))
 
@@ -176,7 +176,7 @@ class Actions:
 
                 def constraints_going_to_resource(agent: Agent, env: Environment) -> bool:
                     new_zeta = new_state_going_to_resource(agent, env)
-                    return ((new_zeta.aware_energy < self.max_tired)  
+                    return ((new_zeta.sleep_fatigue < self.max_tired)  
                             and (new_zeta.muscular_fatigue < 6)
                             and env.is_resource_visible(agent.zeta.x, agent.zeta.y, res)
                             and (env.distance_to_resource(agent.zeta.x, agent.zeta.y, res) > 0))

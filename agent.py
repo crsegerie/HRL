@@ -13,8 +13,8 @@ class Zeta:
         zeta[1] : resource 1
         zeta[2] : resource 2
         zeta[3] : resource 3
-        zeta[4] : muscular energy (muscular resource)
-        zeta[5] : aware energy (aware resource) : high if sleepy.
+        zeta[4] : muscular fatigue (muscular resource)
+        zeta[5] : sleep fatigue (aware resource) : high if sleepy.
         
         not homeostatic (position)
         zeta[6] : x-coordinate
@@ -45,7 +45,7 @@ class Zeta:
         return float(self.tensor[self.hp.difficulty.n_resources + 0])
 
     @property
-    def aware_energy(self) -> float:
+    def sleep_fatigue(self) -> float:
         return float(self.tensor[self.hp.difficulty.n_resources + 1])
 
     @property
