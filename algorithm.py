@@ -8,8 +8,7 @@ import pandas as pd
 
 
 from environment import Environment
-from agent import Agent, ControlT, ZetaTensorT, ControlT, Zeta
-from hyperparam import HomeostaticT
+from agent import Agent, Zeta
 from actions import Actions
 from nets import Net_J, Net_f
 

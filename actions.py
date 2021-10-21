@@ -1,7 +1,7 @@
 from typing import Any, Dict
 
 from environment import Environment
-from agent import ZetaTensorT, Zeta, Agent
+from agent import Zeta, Agent
 from hyperparam import Hyperparam
 
 import torch

@@ -1,8 +1,5 @@
-from hyperparam import Hyperparam
+from hyperparam import Hyperparam, TensorTorch
 import torch
-
-ZetaTensorT = type(torch.Tensor())  # Size 8
-ControlT = type(torch.Tensor())  # Size 8
 
 
 class Zeta:
@@ -29,7 +26,7 @@ class Zeta:
 
         self.n_homeostatic = self.hp.difficulty.n_resources + 2 # muscle, aware
         self.shape = self.n_homeostatic + 2 # for both coordinates x, y
-        self.tensor: ZetaTensorT = torch.zeros(self.shape)
+        self.tensor: TensorTorch = torch.zeros(self.shape)
         self.x_indice = self.n_homeostatic + 0
         self.y_indice = self.n_homeostatic + 1
         self.last_direction = "none"
@@ -121,7 +118,7 @@ class Agent:
         drive_delta = torch.sqrt(epsilon + torch.dot(delta, delta))
         return drive_delta
         
-    def dynamics(self, zeta: Zeta, u: ControlT):
+    def dynamics(self, zeta: Zeta, u: TensorTorch):
         """
         Return the Agent's dynamics which is represented by the f function.
 
@@ -145,7 +142,7 @@ class Agent:
         f[zeta.n_homeostatic:] = u[zeta.n_homeostatic:]
         return f
 
-    def euler_method(self, zeta: Zeta, u: ControlT) -> ZetaTensorT:
+    def euler_method(self, zeta: Zeta, u: TensorTorch) -> TensorTorch:
         """Euler method for tiny time steps.
 
         Parameters
@@ -163,7 +160,7 @@ class Agent:
         new_zeta = zeta.tensor + delta_zeta
         return new_zeta
 
-    def integrate_multiple_steps(self, duration: float, zeta: Zeta, control: ControlT):
+    def integrate_multiple_steps(self, duration: float, zeta: Zeta, control: TensorTorch):
         """We integrate rigorously with an exponential over 
         long time period the differential equation.
 
