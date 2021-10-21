@@ -437,7 +437,6 @@ class Algorithm:
     def simulation(self):
 
         for k in range(self.hp.cst_algo.N_iter):
-            print(k)
             action, loss = self.simulation_one_step(k)
 
             # save historic

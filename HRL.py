@@ -56,6 +56,10 @@ def main(argv):
     set_all_seeds(args.seed)
     
     hyperparam = Hyperparam(level=args.difficulty)
+    hyperparam.cst_algo.N_iter = args.num_iter
+    hyperparam.cst_algo.N_print = args.freq_print
+    hyperparam.cst_algo.cycle_plot = args.freq_plot
+    hyperparam.cst_algo.N_save_weights = args.freq_save_weights
 
     env = Environment(hyperparam)
     agent = Agent(hyperparam)
@@ -63,11 +67,6 @@ def main(argv):
     net_J = Net_J(hyperparam)
     net_f = Net_f(hyperparam)
     algo = Algorithm(hyperparam, env, agent, actions, net_J, net_f)
-
-    algo.N_iter = args.num_iter
-    algo.N_print = args.freq_print
-    algo.cycle_plot = args.freq_plot
-    algo.N_save_weights = args.freq_save_weights
 
     algo.simulation()
 

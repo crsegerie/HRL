@@ -22,7 +22,7 @@ class Difficulty:
             self.n_resources: Literal[2, 4] = 2
             self.type_env: Literal["polygon", "square"] = "square"
 
-        if level == "MEDIUM":
+        elif level == "MEDIUM":
             self.n_resources: Literal[2, 4] = 4
             self.type_env: Literal["polygon", "square"] = "polygon"
 
@@ -148,6 +148,45 @@ class Cst_algo:
         self.N_save_weights = 1000
 
 
+class Cst_tests:
+    def __init__(self, difficulty: Difficulty):
+        if difficulty.type_env == "square":
+            self.is_point_inside = [
+                (-1, 1, False),
+                (1, 1, True),
+                (9, 1, True),
+                (11, 1, False),
+            ]
+            self.is_segment_inside = [
+                # xa, ya, xb, yb,
+                (3, 4, 5, 6, True),
+                (1, 1, 9, 9, True),
+                (1, 1, 1, 11, False),
+                (3, 4, 12, 6, False),
+            ]
+
+        elif difficulty.type_env == "polygon":
+            self.is_point_inside = [
+                (0.1, 1.1, True), # up right A
+                (-0.1, 0.9, False), # down left A
+                (-0.1, 5, False), # left B
+                (0.1, 4.9, True), # right down B
+            ]
+            self.is_segment_inside = [
+                # xa, ya, xb, yb,
+                (0.1, 1.1, -0.1, 0.9, False), # up right A - down left A
+                (-0.1, 0.9, 0.1, 1.1, False), # down left A - up right A
+                (-0.1, 0.9, 0.1, 4.9, False), # down left A - right down B
+                (0.1, 1.1, 0.1, 4.9, True), # up right A - right down B
+                (0.1, 1.1, 0.1, 5.1, False), # up right A - right up B
+                (0.5, 1.5, 0.5, 4.5, True), # other test
+                (0.5, 4.5, 0.5, 1.5, True), # other test
+                (0.5, 6.5, 0.5, 1.5, False), # other test
+            ]
+
+        self.visualization_scale = 10
+
+
 class Hyperparam:
     def __init__(self, level: Literal["EASY", "MEDIUM"]):
         self.difficulty = Difficulty(level)
@@ -156,3 +195,4 @@ class Hyperparam:
         self.cst_actions = Cst_actions(self.difficulty)
         self.cst_nets = Cst_nets()
         self.cst_algo = Cst_algo()
+        self.cst_tests = Cst_tests(self.difficulty)
