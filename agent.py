@@ -1,4 +1,4 @@
-from utils import Hyperparam
+from hyperparam import Hyperparam
 import torch
 
 ZetaTensorT = type(torch.Tensor())  # Size 8

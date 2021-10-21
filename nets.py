@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import sigmoid
 
-from utils import Hyperparam
+from hyperparam import Hyperparam
 
 
 class Net_J(nn.Module):

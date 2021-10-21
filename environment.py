@@ -1,4 +1,4 @@
-from utils import Hyperparam, Point
+from hyperparam import Hyperparam, Point
 
 from typing import List
 

@@ -4,7 +4,8 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-from utils import set_all_seeds, Difficulty, Hyperparam
+from utils import set_all_seeds
+from hyperparam import Hyperparam
 from environment import Environment
 from agent import Agent
 from actions import Actions
@@ -15,8 +16,9 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
-level = "EASY"
-# level = "MEDIUM"
+level = input("Enter the level between EASY or MEDIUM:")
+if level not in ["EASY", "MEDIUM"]:
+    raise ValueError("level should be EASY or MEDIUM.")
 
 
 class TestEnvironnement(unittest.TestCase):

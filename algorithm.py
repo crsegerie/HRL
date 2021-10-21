@@ -1,5 +1,5 @@
 from typing import Any, Dict, Literal, List
-from utils import Hyperparam
+from hyperparam import Hyperparam
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,7 +9,7 @@ import pandas as pd
 
 from environment import Environment
 from agent import Agent, ControlT, ZetaTensorT, ControlT, Zeta
-from utils import HomeostaticT
+from hyperparam import HomeostaticT
 from actions import Actions
 from nets import Net_J, Net_f
 

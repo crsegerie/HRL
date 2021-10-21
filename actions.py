@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from environment import Environment
 from agent import ZetaTensorT, Zeta, Agent
-from utils import Hyperparam
+from hyperparam import Hyperparam
 
 import torch
 import numpy as np

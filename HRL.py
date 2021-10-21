@@ -13,7 +13,8 @@ import argparse
 
 from typing import Literal
 
-from utils import set_all_seeds, Difficulty, Hyperparam
+from utils import set_all_seeds
+from hyperparam import Hyperparam
 from environment import Environment
 from agent import Agent
 from actions import Actions
