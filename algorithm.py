@@ -4,6 +4,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
+from matplotlib.patches import Circle
 import pandas as pd
 
 
@@ -157,9 +158,6 @@ class Algorithm:
         new_zeta = Zeta(self.hp)
         new_zeta.tensor = self.actions.df.loc[action, "new_state"](self.agent, self.env).tensor
         _new_zeta = new_zeta.tensor
-        
-        if "walking" in self.actions.df.loc[action, "name"]:
-            self.agent.zeta.last_direction = self.actions.df.loc[action, "name"]
 
         predicted_new_zeta = _zeta + self.hp.cst_algo.time_step * \
             self.net_f.forward(zeta_u)
@@ -363,20 +361,11 @@ class Algorithm:
         x = zeta.x
         y = zeta.y
 
-        dx, dy = 0, 0
-        if self.agent.zeta.last_direction == "walking_right":
-            dx, dy = 1, 0
-        elif self.agent.zeta.last_direction == "walking_left":
-            dx, dy = -1, 0
-        elif self.agent.zeta.last_direction == "walking_up":
-            dx, dy = 0, 1
-        elif self.agent.zeta.last_direction == "walking_down":
-            dx, dy = 0, -1
-            
+        color = "grey"
+        patch_circle = Circle((x, y), 0.2, color=color)
+        ax.add_patch(patch_circle)
+        ax.text(x, y, "agent")
 
-        alpha = 0.5
-
-        ax.arrow(x, y, dx, dy, head_width=0.1, alpha=alpha)
         ax.set_title("Position of the agent.")
 
     def plot(self, frame: int, scale=5):
