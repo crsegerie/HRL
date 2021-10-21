@@ -60,7 +60,7 @@ class Algorithm:
         # But this vector contains the information of zeta and u.
         # The u is the one-hot-encoded control associated with the action a
         zeta_u = torch.cat(
-            [_zeta_tensor, torch.zeros(self.actions.n_actions)])
+            [_zeta_tensor, torch.zeros(self.hp.cst_actions.n_actions)])
         index_control = len(_zeta_tensor) + action
         zeta_u[index_control] = 1
 
@@ -129,12 +129,12 @@ class Algorithm:
 
         for i in range(self.agent.zeta.n_homeostatic):
             # zeta = x - x_star
-            if _zeta[i] + self.hp.cst_agent.x_star[i] < self.actions.min_resource:
-                _zeta[i] = -self.hp.cst_agent.x_star[i] + self.actions.min_resource
+            if _zeta[i] + self.hp.cst_agent.x_star[i] < self.hp.cst_agent.min_resource:
+                _zeta[i] = -self.hp.cst_agent.x_star[i] + self.hp.cst_agent.min_resource
 
         possible_actions = [cstr(self.agent, self.env) for cstr in self.actions.df.loc[:, "constraints"].tolist()]
         indexes_possible_actions = [i for i in range(
-            self.actions.n_actions) if possible_actions[i]]
+            self.hp.cst_actions.n_actions) if possible_actions[i]]
 
         # The default action is doing nothing. Like people in real life.
         action = self.actions.df.index[self.actions.df.loc[:, "name"] == "doing_nothing"][0]
@@ -152,7 +152,7 @@ class Algorithm:
                     action = act
 
         zeta_u = torch.cat(
-            [_zeta, torch.zeros(self.actions.n_actions)])
+            [_zeta, torch.zeros(self.hp.cst_actions.n_actions)])
         zeta_u[len(_zeta) + action] = 1
 
         new_zeta = Zeta(self.hp)

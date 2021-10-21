@@ -91,6 +91,24 @@ class Cst_agent:
 
         self.walking_speed = 0.1
 
+        # Minimum duration when the agent sleeps
+        self.n_min_time_sleep = 1000
+
+        # If the agent is too tired (sleep), it automatically sleeps.
+        self.max_sleep_fatigue = 10
+        # If the agent is not tired (sleep) enough, it cannot sleep
+        self.min_sleep_fatigue = 1
+        # If the agent is too tired (muscular), it cannot move
+        self.max_muscular_fatigue = 6
+
+        self.max_eating = 8
+
+        # If any of the agent's resources are less than min_resource,
+        # we raise it to min_resource.
+        # Because the dynamics is controlled by an exponential function,
+        # if one resource equals 0, it can never be raised again.
+        self.min_resource = 0.1
+
         # Homeostatic setpoint
         # Resources 1, 2, 3 and 4, muscular fatigue, aware energy
         x_star_4_resources = torch.Tensor([1, 2, 3, 4, 0, 0])
@@ -102,11 +120,36 @@ class Cst_agent:
         # Resources 1, 2, 3 and 4, muscular fatigue, aware energy, x, y
         self.coef_hertz: TensorTorch = torch.Tensor(
             [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
-        
+
 
 class Cst_actions:
-    def __init__(self, difficulty: Difficulty):
+    def __init__(self, difficulty: Difficulty, cst_agent: Cst_agent):
         self.n_actions = 6 + 2 * difficulty.n_resources
+
+        self.control_walking_right = torch.tensor(
+            [0.]*difficulty.n_resources + [0.01, 0., cst_agent.walking_speed, 0.])
+        self.control_walking_left = torch.tensor(
+            [0.]*difficulty.n_resources + [0.01, 0., -cst_agent.walking_speed, 0.])
+        self.control_walking_up = torch.tensor(
+            [0.]*difficulty.n_resources + [0.01, 0., 0., cst_agent.walking_speed])
+        self.control_walking_down = torch.tensor(
+            [0.]*difficulty.n_resources + [0.01, 0., 0., -cst_agent.walking_speed])
+
+        self.control_sleeping = torch.tensor(
+            [0.]*difficulty.n_resources + [0., -0.001, 0., 0.])
+
+        self.control_doing_nothing = torch.tensor([0.]*cst_agent.zeta_shape)
+
+        self.controls_consuming_resource = [
+            torch.tensor([0 if i != res else 0.1 for i in range(cst_agent.zeta_shape)])
+            for res in range(difficulty.n_resources)
+        ]
+
+        self.control_going_to_resource = torch.tensor(
+            [0.]*difficulty.n_resources + [0.01, 0., 0., 0.])
+
+        self.coefficient_loss_small_action = 1
+        self.coefficient_loss_big_action = 100
 
 
 class Cst_nets:
@@ -182,7 +225,7 @@ class Hyperparam:
         self.difficulty = Difficulty(level)
         self.cst_env = Cst_env(self.difficulty)
         self.cst_agent = Cst_agent(self.difficulty)
-        self.cst_actions = Cst_actions(self.difficulty)
+        self.cst_actions = Cst_actions(self.difficulty, self.cst_agent)
         self.cst_nets = Cst_nets()
         self.cst_algo = Cst_algo()
         self.cst_tests = Cst_tests(self.difficulty)
