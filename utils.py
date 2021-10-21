@@ -127,7 +127,25 @@ class Cst_nets:
 
 class Cst_algo:
     def __init__(self):
+        # Simulation
         self.time_step = 1
+        self.N_iter = 100
+
+        # RL learning
+        self.eps = 0.3  # random actions
+        self.gamma = 0.99  # discounted rate
+        self.tau = 0.001  # not used yet (linked with the target function)
+
+        # Gradient descent
+        self.learning_rate = 0.001
+
+        # Verbose
+        self.N_print = 1
+        self.cycle_plot = self.N_iter - 1
+        self.N_rolling = 5
+
+        # Save neural networks weights every N_save_weights step
+        self.N_save_weights = 1000
 
 
 class Hyperparam:

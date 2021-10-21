@@ -18,27 +18,6 @@ class Algorithm:
     def __init__(self, hyperparam: Hyperparam, env: Environment, agent: Agent,
                  actions: Actions, net_J: Net_J, net_f: Net_f):
 
-        # ALGOS METAPARAMETERS ##################################
-
-        # Iterations
-        self.N_iter = 100
-
-        # RL learning
-        self.eps = 0.3  # random actions
-        self.gamma = 0.99  # discounted rate
-        self.tau = 0.001  # not used yet (linked with the target function)
-
-        # Gradient descent
-        self.learning_rate = 0.001
-        self.asym_coeff = 100
-
-        # plotting
-        self.N_print = 1
-        self.cycle_plot = self.N_iter - 1
-        self.N_rolling = 5
-        # save neural networks weights every N_save_weights step
-        self.N_save_weights = 1000
-
         # CLASSES #########################################
         self.hp = hyperparam
         self.env = env
@@ -49,9 +28,9 @@ class Algorithm:
 
         # UTILS ############################################
         self.optimizer_J = torch.optim.Adam(
-            self.net_J.parameters(), lr=self.learning_rate)
+            self.net_J.parameters(), lr=self.hp.cst_algo.learning_rate)
         self.optimizer_f = torch.optim.Adam(
-            self.net_f.parameters(), lr=self.learning_rate)
+            self.net_f.parameters(), lr=self.hp.cst_algo.learning_rate)
 
         self.historic_zeta: List[Zeta] = []
         self.historic_actions = []
@@ -160,7 +139,7 @@ class Algorithm:
         # The default action is doing nothing. Like people in real life.
         action = self.actions.df.index[self.actions.df.loc[:, "name"] == "doing_nothing"][0]
 
-        if np.random.random() <= self.eps:
+        if np.random.random() <= self.hp.cst_algo.eps:
             action = np.random.choice(indexes_possible_actions)
 
         else:
@@ -213,7 +192,7 @@ class Algorithm:
                                     self.net_f.forward(zeta_u))
 
         # 0.1 current deviation
-        discounted_deviation = - torch.log(torch.tensor(self.gamma)) * \
+        discounted_deviation = - torch.log(torch.tensor(self.hp.cst_algo.gamma)) * \
             self.net_J.forward(_zeta)
         Loss_J = torch.square(
             instant_drive + delta_deviation - discounted_deviation)
@@ -228,13 +207,13 @@ class Algorithm:
 
         self.agent.zeta.tensor = _new_zeta
 
-        if (k % self.N_print) == 0:
-            print("Iteration:", k, "/", self.N_iter - 1)
+        if (k % self.hp.cst_algo.N_print) == 0:
+            print("Iteration:", k, "/", self.hp.cst_algo.N_iter - 1)
             print("Action:", action, self.actions.df.loc[action, "name"])
             print("zeta:", _zeta)
             print("")
 
-        if (k % self.N_save_weights) == 0:
+        if (k % self.hp.cst_algo.N_save_weights) == 0:
             torch.save(self.net_J.state_dict(), 'weights/weights_net_J')
             torch.save(self.net_f.state_dict(), 'weights/weights_net_f')
 
@@ -360,13 +339,13 @@ class Algorithm:
 
         df = pd.DataFrame(self.historic_losses[:frame+1],
                           columns=loss_meaning)
-        df = df.rolling(window=self.N_rolling).mean()
+        df = df.rolling(window=self.hp.cst_algo.N_rolling).mean()
         df.plot(ax=ax, grid=True, logy=True)
         ax.set_ylabel('value of the losses')
         ax.set_xlabel('frames')
         ax.set_title(
             f"Evolution of the log-loss (moving average with "
-            f"{self.N_rolling} frames)")
+            f"{self.hp.cst_algo.N_rolling} frames)")
 
     def plot_position(self, ax, zeta: Zeta):
         """Plot the position.
@@ -457,7 +436,7 @@ class Algorithm:
 
     def simulation(self):
 
-        for k in range(self.N_iter):
+        for k in range(self.hp.cst_algo.N_iter):
             print(k)
             action, loss = self.simulation_one_step(k)
 
@@ -466,7 +445,7 @@ class Algorithm:
             self.historic_actions.append(action)
             self.historic_losses.append(loss)
 
-            if k % self.cycle_plot == 0:
+            if k % self.hp.cst_algo.cycle_plot == 0:
                 self.plot(k)
 
         torch.save(self.net_J.state_dict(), 'weights/weights_net_J')
