@@ -2,6 +2,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import sigmoid
 
+from utils import Hyperparam
+
 
 class Net_J(nn.Module):
     """ Net_J is the tentative of the agent to learn the world.
@@ -11,10 +13,11 @@ class Net_J(nn.Module):
     The agents wants to minimize this discounted drive.
     """
 
-    def __init__(self, shape_zeta:int):
+    def __init__(self, hyperparam: Hyperparam):
         super(Net_J, self).__init__()
-        n_neurons = 128
-        dropout_rate = 0.15
+        n_neurons = hyperparam.cst_nets.n_neurons
+        dropout_rate = hyperparam.cst_nets.dropout_rate
+        shape_zeta = hyperparam.cst_agent.zeta_shape
         self.fc1 = nn.Linear(shape_zeta, n_neurons)
         self.dropout1 = nn.Dropout(dropout_rate)
         self.fc2 = nn.Linear(n_neurons, n_neurons)
@@ -46,11 +49,13 @@ class Net_f(nn.Module):
     zeta = internal + external state
     """
 
-    def __init__(self, shape_zeta:int, n_tot_actions:int) :
+    def __init__(self, hyperparam: Hyperparam) :
         super(Net_f, self).__init__()
-        n_neurons = 128
-        dropout_rate = 0.15
-        self.fc1 = nn.Linear(shape_zeta + n_tot_actions, n_neurons)
+        n_neurons = hyperparam.cst_nets.n_neurons
+        dropout_rate = hyperparam.cst_nets.dropout_rate
+        shape_zeta = hyperparam.cst_agent.zeta_shape
+        n_actions = hyperparam.cst_actions.n_actions
+        self.fc1 = nn.Linear(shape_zeta + n_actions, n_neurons)
         self.dropout1 = nn.Dropout(dropout_rate)
         self.fc2 = nn.Linear(n_neurons, n_neurons)
         self.dropout2 = nn.Dropout(dropout_rate)

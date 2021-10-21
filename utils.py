@@ -94,6 +94,11 @@ HomeostaticT = type(torch.Tensor())  # Size 6
 
 class Cst_agent:
     def __init__(self, difficulty: Difficulty):
+        self.default_pos_x = 2
+        self.default_pos_y = 2
+
+        self.zeta_shape = difficulty.n_resources + 4 # muscular, aware, x, y
+
         self.walking_speed = 0.1
 
         # Homeostatic setpoint
@@ -109,6 +114,17 @@ class Cst_agent:
             [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
         
 
+class Cst_actions:
+    def __init__(self, difficulty: Difficulty):
+        self.n_actions = 6 + 2 * difficulty.n_resources
+
+
+class Cst_nets:
+    def __init__(self):
+        self.n_neurons = 128
+        self.dropout_rate = 0.15
+
+
 class Cst_algo:
     def __init__(self):
         self.time_step = 1
@@ -119,4 +135,6 @@ class Hyperparam:
         self.difficulty = Difficulty(level)
         self.cst_env = Cst_env(self.difficulty)
         self.cst_agent = Cst_agent(self.difficulty)
+        self.cst_actions = Cst_actions(self.difficulty)
+        self.cst_nets = Cst_nets()
         self.cst_algo = Cst_algo()

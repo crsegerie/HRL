@@ -60,8 +60,8 @@ def main(argv):
     env = Environment(hyperparam)
     agent = Agent(hyperparam)
     actions = Actions(hyperparam)
-    net_J = Net_J(shape_zeta=agent.zeta.shape)
-    net_f = Net_f(shape_zeta=agent.zeta.shape, n_tot_actions=actions.n_actions)
+    net_J = Net_J(hyperparam)
+    net_f = Net_f(hyperparam)
     algo = Algorithm(hyperparam, env, agent, actions, net_J, net_f)
 
     algo.N_iter = args.num_iter

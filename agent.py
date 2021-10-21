@@ -98,7 +98,9 @@ class Agent:
         self.hp = hyperparam
 
         # Setting initial position
-        self.zeta: Zeta = Zeta(hyperparam=self.hp, x=2, y=2)
+        self.zeta: Zeta = Zeta(hyperparam=self.hp,
+                               x=self.hp.cst_agent.default_pos_x,
+                               y=self.hp.cst_agent.default_pos_y)
 
     def drive(self, zeta: Zeta, epsilon: float = 0.001):
         """
