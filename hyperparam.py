@@ -87,7 +87,29 @@ class Cst_agent:
         self.default_pos_x = 2
         self.default_pos_y = 2
 
+        features_to_index = {}
+        for i in range(difficulty.n_resources):
+            features_to_index[f"resource_{i}"] = i
+        features_to_index["muscular_fatigue"] = difficulty.n_resources
+        features_to_index["sleep_fatigue"] = difficulty.n_resources + 1
+        features_to_index["x"] = difficulty.n_resources + 2
+        features_to_index["y"] = difficulty.n_resources + 3
+        features_to_index["homeostatic"] = [i for i in range(difficulty.n_resources + 2)]
+        self.features_to_index = features_to_index
+
         self.zeta_shape = difficulty.n_resources + 4 # muscular, aware, x, y
+
+        # Homeostatic setpoint
+        # Resources 1, 2, 3 and 4, muscular fatigue, aware energy
+        x_star_4_resources = torch.Tensor([1, 2, 3, 4, 0, 0])
+        x_star_2_resources = torch.Tensor([1, 2, 0, 0])
+        self.x_star: TensorTorch = x_star_4_resources \
+            if difficulty.n_resources == 4 else x_star_2_resources
+
+        # Parameters of the function f
+        # Resources 1, 2, 3 and 4, muscular fatigue, aware energy, x, y
+        self.coef_hertz: TensorTorch = torch.Tensor(
+            [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
 
         self.walking_speed = 0.1
 
@@ -108,18 +130,6 @@ class Cst_agent:
         # Because the dynamics is controlled by an exponential function,
         # if one resource equals 0, it can never be raised again.
         self.min_resource = 0.1
-
-        # Homeostatic setpoint
-        # Resources 1, 2, 3 and 4, muscular fatigue, aware energy
-        x_star_4_resources = torch.Tensor([1, 2, 3, 4, 0, 0])
-        x_star_2_resources = torch.Tensor([1, 2, 0, 0])
-        self.x_star: TensorTorch = x_star_4_resources \
-            if difficulty.n_resources == 4 else x_star_2_resources
-
-        # Parameters of the function f
-        # Resources 1, 2, 3 and 4, muscular fatigue, aware energy, x, y
-        self.coef_hertz: TensorTorch = torch.Tensor(
-            [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
 
 
 class Cst_actions:

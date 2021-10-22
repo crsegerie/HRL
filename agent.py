@@ -5,7 +5,7 @@ import torch
 class Zeta:
     """Internal and external state of the agent."""
 
-    def __init__(self, hyperparam: Hyperparam, x=None, y=None) -> None:
+    def __init__(self, hyperparam: Hyperparam) -> None:
         """zeta : torch.tensor
         
         homeostatic:
@@ -31,14 +31,6 @@ class Zeta:
         self.x_indice = self.n_homeostatic + 0
         self.y_indice = self.n_homeostatic + 1
 
-        if x and y:
-            self.tensor[self.n_homeostatic + 0] = x
-            self.tensor[self.n_homeostatic + 1] = y
-
-        # Muscular and sleep fatigues set to min_resource
-        self.tensor[self.hp.difficulty.n_resources + 0] = self.hp.cst_agent.min_resource
-        self.tensor[self.hp.difficulty.n_resources + 1] = self.hp.cst_agent.min_resource
-
     def resource(self, resource_i: int):
         assert resource_i < self.hp.difficulty.n_resources
         return float(self.tensor[resource_i])
@@ -47,35 +39,38 @@ class Zeta:
     def muscular_fatigue(self) -> float:
         return float(self.tensor[self.hp.difficulty.n_resources + 0])
 
+    @muscular_fatigue.setter
+    def muscular_fatigue(self, val: float) -> None:
+        self.tensor[self.hp.difficulty.n_resources + 0] = val
+
     @property
     def sleep_fatigue(self) -> float:
         return float(self.tensor[self.hp.difficulty.n_resources + 1])
+
+    @sleep_fatigue.setter
+    def sleep_fatigue(self, val: float) -> None:
+        self.tensor[self.hp.difficulty.n_resources + 1] = val
 
     @property
     def x(self) -> float:
         return float(self.tensor[self.n_homeostatic + 0])
     
     @x.setter
-    def x(self, x : float) -> None:
-        self.tensor[self.n_homeostatic + 0] = x
+    def x(self, val: float) -> None:
+        self.tensor[self.n_homeostatic + 0] = val
 
     @property
     def y(self) -> float:
         return float(self.tensor[self.n_homeostatic + 1])
     
     @y.setter
-    def y(self, y : float) -> None:
-        self.tensor[self.n_homeostatic + 1] = y
+    def y(self, val: float) -> None:
+        self.tensor[self.n_homeostatic + 1] = val
 
     @property
     def homeostatic(self):
         """Homeostatic level is regulated to a set point."""
         return self.tensor[:self.n_homeostatic]
-
-    @property
-    def position(self):
-        """Position coordinates are regulated to a set point."""
-        return self.tensor[self.n_homeostatic:]
 
 
 class Agent:
@@ -85,9 +80,11 @@ class Agent:
         self.hp = hyperparam
 
         # Setting initial position
-        self.zeta: Zeta = Zeta(hyperparam=self.hp,
-                               x=self.hp.cst_agent.default_pos_x,
-                               y=self.hp.cst_agent.default_pos_y)
+        self.zeta = Zeta(self.hp)
+        self.zeta.x = self.hp.cst_agent.default_pos_x
+        self.zeta.y = self.hp.cst_agent.default_pos_y
+        self.zeta.muscular_fatigue = self.hp.cst_agent.min_resource
+        self.zeta.sleep_fatigue = self.hp.cst_agent.min_resource
 
     def drive(self, zeta: Zeta, epsilon: float = 0.001):
         """
