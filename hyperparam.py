@@ -148,6 +148,8 @@ class Cst_actions:
         self.control_going_to_resource = torch.tensor(
             [0.]*difficulty.n_resources + [0.01, 0., 0., 0.])
 
+        self.default_action = "doing_nothing"
+
         self.coefficient_loss_small_action = 1
         self.coefficient_loss_big_action = 100
 

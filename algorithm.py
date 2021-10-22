@@ -133,7 +133,8 @@ class Algorithm:
 
         # The default action is doing nothing. Like people in real life.
         # There is a [0] because this is a list of one element.
-        action = self.actions.df.index[self.actions.df.loc[:, "name"] == "doing_nothing"][0]
+        index_default_action = self.actions.df.loc[:, "name"] == self.hp.cst_actions.default_action
+        action = self.actions.df.index[index_default_action][0]
 
         if np.random.random() <= self.hp.cst_algo.eps:
             action = np.random.choice(indexes_possible_actions)
