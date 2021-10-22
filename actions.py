@@ -78,7 +78,7 @@ class Actions:
 
         action_sleeping = {
             "name": "sleeping",
-            "definition": "Sleeping for a fixed time period to recover from muscular and aware tiredness.",
+            "definition": "Sleeping for a fixed time period to recover from muscular and sleep fatigues.",
             "new_state": new_state_sleeping,
             "constraints": constraints_sleeping,
             "coefficient_loss": self.hp.cst_actions.coefficient_loss_big_action,

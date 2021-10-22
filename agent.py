@@ -81,19 +81,6 @@ class Zeta:
 class Agent:
     def __init__(self, hyperparam: Hyperparam):
         """Initialize the Agent.
-
-        ...
-
-        PROPERTIES
-        ---------
-        x_star : torch.tensor
-            homeostatic set point.
-        c : torch.tensor
-            homogeneus to the inverse of a second. For example c = (-0.1, ...)
-            says that the half-life (like a radioactive element) of the first
-            ressource is equal to 10 seconds.
-        zeta: state of the agent.
-
         """
         self.hp = hyperparam
 

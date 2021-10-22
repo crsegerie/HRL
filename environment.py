@@ -16,7 +16,6 @@ class Environment:
         To do this, we look at the number of sides of the polygon at the left
         of the point.
         """
-
         # It allows no to treat the last case from
         # the end to the beginning separately
         coords = self.hp.cst_env.coord_env + [self.hp.cst_env.coord_env[0]]
@@ -44,7 +43,6 @@ class Environment:
         To do this, we look at the number of intersections between the segment
         and the sides of the polygon.
         """
-
         # It allows no to treat the last case from
         # the end to the beginning separately
         coords = self.hp.cst_env.coord_env + [self.hp.cst_env.coord_env[0]]
@@ -143,15 +141,6 @@ class Environment:
 
     def plot(self, ax=None, save_fig: bool = False):
         """Plot the environment, but not the Agent.
-
-        Parameters
-        ----------
-        ax: SubplotBase
-        save_fig: bool
-
-        Returns
-        -------
-        Returns nothing. Only inplace update ax.
         """
         if ax is None:
             ax = plt.subplot(111)

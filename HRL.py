@@ -4,7 +4,7 @@ Described in the paper:
 Continuous Homeostatic Reinforcement Learning
 for Self-Regulated Autonomous Agents.
 
-Authors : Hugo Laurençon, Charbel-Raphaël Ségerie,
+Authors: Hugo Laurençon, Charbel-Raphaël Ségerie,
 Johann Lussange, Boris S. Gutkin.
 """
 

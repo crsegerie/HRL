@@ -70,8 +70,8 @@ class TestHRL(unittest.TestCase):
         algo = Algorithm(hyperparam, env, agent, actions, net_J, net_f, plots)
         algo.simulation()
 
-        # Check manually the values of zeta and
-        # the plot at the end of the simulation
+        # Check manually the values of zeta and the
+        # dashboard plot at the end of the simulation
 
 
 if __name__ == '__main__':
