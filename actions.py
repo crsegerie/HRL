@@ -120,7 +120,7 @@ class Actions:
                 def constraints_consuming_resource(agent: Agent, env: Environment) -> bool:
                     return ((agent.zeta.sleep_fatigue < self.hp.cst_agent.max_sleep_fatigue)
                             and env.is_near_resource(agent.zeta.x, agent.zeta.y, res)
-                            and (agent.zeta.resource(res) < self.hp.cst_agent.max_eating))
+                            and (agent.zeta.get_resource(res) < self.hp.cst_agent.max_eating))
 
                 return new_state_consuming_resource, constraints_consuming_resource
         
