@@ -30,7 +30,11 @@ class Algorithm:
         self.optimizer_f = torch.optim.Adam(
             self.net_f.parameters(), lr=self.hp.cst_algo.learning_rate)
 
-        self.historic_zeta: List[Zeta] = []
+        # TODO: ATTENTION AU DEEP COPY, si on met directement self.agent.zeta
+        # au lieu de zeta_init (avec ou sans clone), ça ne marche pas
+        zeta_init = Zeta(self.hp)
+        zeta_init.tensor = self.agent.zeta.tensor#.clone()
+        self.historic_zeta: List[Zeta] = [zeta_init]
         self.historic_actions = []
         self.historic_losses = []  # will contain a list of 2d [L_f, L_J]
 
@@ -113,22 +117,15 @@ class Algorithm:
 
     def simulation_one_step(self, k: int):
         """Simulate one step.
-
-        Paramaters:
-        -----------
-        k: int
-
-        Returns
-        -------
-        (action, loss): int, np.ndarray"""
+        """
         _zeta = self.agent.zeta.tensor
         # if you are exacly on 0 (empty resource) you get stuck
         # because of the nature of the differential equation.
-
-        for i in range(self.agent.zeta.n_homeostatic):
-            # zeta = x - x_star
-            if _zeta[i] + self.hp.cst_agent.x_star[i] < self.hp.cst_agent.min_resource:
-                _zeta[i] = -self.hp.cst_agent.x_star[i] + self.hp.cst_agent.min_resource
+        # It is commented because it is done below
+        #for i in range(self.agent.zeta.n_homeostatic):
+        #    # zeta = x - x_star
+        #    if _zeta[i] + self.hp.cst_agent.x_star[i] < self.hp.cst_agent.min_resource:
+        #        _zeta[i] = -self.hp.cst_agent.x_star[i] + self.hp.cst_agent.min_resource
 
         possible_actions = [cstr(self.agent, self.env) for cstr in self.actions.df.loc[:, "constraints"].tolist()]
         indexes_possible_actions = [i for i in range(
@@ -202,26 +199,31 @@ class Algorithm:
 
         self.agent.zeta.tensor = _new_zeta
 
+        for i in range(self.agent.zeta.n_homeostatic):
+            # zeta = x - x_star
+            if self.agent.zeta.tensor[i] + self.hp.cst_agent.x_star[i] < self.hp.cst_agent.min_resource:
+                self.agent.zeta.tensor[i] = -self.hp.cst_agent.x_star[i] + self.hp.cst_agent.min_resource
+
         loss = np.array([Loss_f.detach().numpy(), Loss_J.detach().numpy()[0]])
-        return action, loss, _zeta
+
+        # save historic
+        self.historic_zeta.append(self.agent.zeta)
+        self.historic_actions.append(action)
+        self.historic_losses.append(loss)
 
     def simulation(self):
 
         for k in range(self.hp.cst_algo.N_iter):
-            action, loss, _zeta = self.simulation_one_step(k)
+            self.simulation_one_step(k)
 
-            # save historic
-            self.historic_zeta.append(self.agent.zeta)
-            self.historic_actions.append(action)
-            self.historic_losses.append(loss)
-
-            if (k % self.hp.cst_algo.N_print) == 0:
+            if ((k % self.hp.cst_algo.N_print) == 0) or (k == self.hp.cst_algo.N_iter-1):
                 print("Iteration:", k, "/", self.hp.cst_algo.N_iter - 1)
+                print("Zeta before action:", self.historic_zeta[-2].tensor)
+                action = self.historic_actions[-1]
                 print("Action:", action, self.actions.df.loc[action, "name"])
-                print("zeta:", _zeta)
                 print("")
 
-            if k % self.hp.cst_algo.cycle_plot == 0:
+            if (k % self.hp.cst_algo.cycle_plot == 0) or (k == self.hp.cst_algo.N_iter-1):
                 self.plots.plot(frame=k,
                                 env=self.env,
                                 historic_zeta=self.historic_zeta,

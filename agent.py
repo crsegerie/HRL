@@ -27,13 +27,17 @@ class Zeta:
         self.n_homeostatic = self.hp.difficulty.n_resources + 2 # muscle, aware
         self.shape = self.n_homeostatic + 2 # for both coordinates x, y
         self.tensor: TensorTorch = torch.zeros(self.shape)
+        # X_INDICE ET Y_INDICE NE SONT PAS UTILISES DANS LE CODE ACTUELLEMENT
         self.x_indice = self.n_homeostatic + 0
         self.y_indice = self.n_homeostatic + 1
 
         if x and y:
             self.tensor[self.n_homeostatic + 0] = x
             self.tensor[self.n_homeostatic + 1] = y
-            
+
+        # Muscular and sleep fatigues set to min_resource
+        self.tensor[self.hp.difficulty.n_resources + 0] = self.hp.cst_agent.min_resource
+        self.tensor[self.hp.difficulty.n_resources + 1] = self.hp.cst_agent.min_resource
 
     def resource(self, resource_i: int):
         assert resource_i < self.hp.difficulty.n_resources
