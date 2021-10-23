@@ -201,9 +201,9 @@ class Algorithm:
 
         self.agent.zeta.tensor = _new_zeta
 
-        x_homeo = self.agent.zeta.homeostatic + self.hp.cst_agent.x_star
+        x_homeo = self.agent.zeta.homeostatic + self.agent.x_star.homeostatic
         is_below_min = x_homeo < self.hp.cst_agent.min_resource
-        min_zeta_homeo = -self.hp.cst_agent.x_star + self.hp.cst_agent.min_resource
+        min_zeta_homeo = -self.agent.x_star.homeostatic + self.hp.cst_agent.min_resource
         self.agent.zeta.homeostatic[is_below_min] = min_zeta_homeo[is_below_min]
 
         loss = np.array([Loss_f.detach().numpy(), Loss_J.detach().numpy()[0]])

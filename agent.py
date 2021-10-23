@@ -109,7 +109,7 @@ class Agent:
         """
         f = HomogeneousZeta(self.hp)
         f.homeostatic = (self.coeff_eq_diff.homeostatic + u.homeostatic) * \
-            (zeta.homeostatic + self.hp.cst_agent.x_star)
+            (zeta.homeostatic + self.x_star.homeostatic)
         f.non_homeostatic = u.non_homeostatic
         return f
 
@@ -130,10 +130,10 @@ class Agent:
         This function is usefull in the case of big actions, 
         such as going direclty to one of the resource.
         """
-        x = zeta.homeostatic + self.hp.cst_agent.x_star
+        x = zeta.homeostatic + self.x_star.homeostatic
         rate = self.coeff_eq_diff.homeostatic + control.homeostatic
         new_x = x * torch.exp(rate * duration)
-        new_zeta_homeo = new_x - self.hp.cst_agent.x_star
+        new_zeta_homeo = new_x - self.x_star.homeostatic
 
         new_zeta = HomogeneousZeta(self.hp)
         new_zeta.homeostatic = new_zeta_homeo

@@ -100,13 +100,6 @@ class Cst_agent:
         self.zeta_shape = difficulty.n_resources + 4 # muscular, aware, x, y
 
         # Homeostatic setpoint
-        # Resources 1, 2, 3 and 4, muscular fatigue, aware energy
-        x_star_4_resources = torch.Tensor([1, 2, 3, 4, 0, 0])
-        x_star_2_resources = torch.Tensor([1, 2, 0, 0])
-        self.x_star = x_star_4_resources \
-            if difficulty.n_resources == 4 else x_star_2_resources
-
-        # Homeostatic setpoint
         val_x_star = {}
         for i in range(difficulty.n_resources):
             val_x_star[f"resource_{i}"] = i + 1

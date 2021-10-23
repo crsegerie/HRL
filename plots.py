@@ -109,7 +109,7 @@ class Plots:
                     zeta = HomogeneousZeta(self.hp)
                     zeta.x = i/scale
                     zeta.y = j/scale
-                    zeta.set_resource(resource_id, -self.hp.cst_agent.x_star[resource_id])
+                    zeta.set_resource(resource_id, -self.hp.cst_agent.val_x_star[f"resource_{resource_id}"])
 
                     with torch.no_grad():
                         values[i, j] = net_J(zeta.tensor).detach().numpy()
