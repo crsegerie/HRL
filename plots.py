@@ -1,6 +1,6 @@
 from hyperparam import Hyperparam
 from environment import Environment
-from agent import Zeta, Agent
+from agent import HomogeneousZeta, Agent
 from actions import Actions
 from nets import Net_J
 
@@ -21,7 +21,7 @@ class Plots:
     def __init__(self, hyperparam: Hyperparam) -> None:
         self.hp = hyperparam
 
-    def plot_resources(self, ax, frame: int, historic_zeta: List[Zeta]):
+    def plot_resources(self, ax, frame: int, historic_zeta: List[HomogeneousZeta]):
         """Plot the resource historic as a function of time.
         x-axis is step and not time.
         """
@@ -37,7 +37,7 @@ class Plots:
         ax.set_xlabel('frames')
         ax.set_title("Evolution of the resource")
 
-    def plot_position(self, ax, env: Environment, zeta: Zeta):
+    def plot_position(self, ax, env: Environment, zeta: HomogeneousZeta):
         """Plot the position.
         x-axis is step and not time.
         """
@@ -106,11 +106,11 @@ class Plots:
                     # We are at the optimum for three out of the 4 resources
                     # but one resources varies alongside with the coordinates.
                     # No muscular nor sleep fatigues.
-                    zeta = Zeta(self.hp)
+                    zeta = HomogeneousZeta(self.hp)
                     zeta.x = i/scale
                     zeta.y = j/scale
                     zeta.set_resource(resource_id, -self.hp.cst_agent.x_star[resource_id])
-                    
+
                     with torch.no_grad():
                         values[i, j] = net_J(zeta.tensor).detach().numpy()
 
@@ -123,7 +123,7 @@ class Plots:
         ax.set_title(f'Deviation function (resource {resource_id} missing)')
         cbar = fig.colorbar(im, extend='both', shrink=0.4, ax=ax)
 
-    def plot(self, frame: int, env: Environment, historic_zeta: List[Zeta],
+    def plot(self, frame: int, env: Environment, historic_zeta: List[HomogeneousZeta],
              historic_actions: List, actions: Actions, historic_losses: List,
              net_J: Net_J, scale=5):
         """Plot the position and the ressources of the agent.

@@ -2,7 +2,7 @@ from hyperparam import Hyperparam, TensorTorch
 import torch
 
 
-class Zeta:
+class HomogeneousZeta:
     """Homogeneous to the state (internal + external) of the agent."""
     def __init__(self, hyperparam: Hyperparam) -> None:
         self.hp = hyperparam
@@ -66,13 +66,13 @@ class Agent:
         self.hp = hyperparam
 
         # Setting initial position
-        self.zeta = Zeta(self.hp)
+        self.zeta = HomogeneousZeta(self.hp)
         self.zeta.x = self.hp.cst_agent.default_pos_x
         self.zeta.y = self.hp.cst_agent.default_pos_y
         self.zeta.muscular_fatigue = self.hp.cst_agent.min_resource
         self.zeta.sleep_fatigue = self.hp.cst_agent.min_resource
 
-    def drive(self, zeta: Zeta, epsilon: float = 0.001):
+    def drive(self, zeta: HomogeneousZeta, epsilon: float = 0.001):
         """
         Return the Agent's drive which is the distance between the agent's 
         state and the homeostatic set point.
@@ -91,7 +91,7 @@ class Agent:
         drive_delta = torch.sqrt(epsilon + torch.dot(delta, delta))
         return drive_delta
         
-    def dynamics(self, zeta: Zeta, u: TensorTorch):
+    def dynamics(self, zeta: HomogeneousZeta, u: TensorTorch):
         """
         Return the Agent's dynamics which is represented by the f function.
 
@@ -115,7 +115,7 @@ class Agent:
         f[zeta.n_homeostatic:] = u[zeta.n_homeostatic:]
         return f
 
-    def euler_method(self, zeta: Zeta, u: TensorTorch) -> TensorTorch:
+    def euler_method(self, zeta: HomogeneousZeta, u: TensorTorch) -> TensorTorch:
         """Euler method for tiny time steps.
 
         Parameters
@@ -133,7 +133,7 @@ class Agent:
         new_zeta = zeta.tensor + delta_zeta
         return new_zeta
 
-    def integrate_multiple_steps(self, duration: float, zeta: Zeta, control: TensorTorch):
+    def integrate_multiple_steps(self, duration: float, zeta: HomogeneousZeta, control: TensorTorch):
         """We integrate rigorously with an exponential over 
         long time period the differential equation.
 

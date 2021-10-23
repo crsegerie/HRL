@@ -136,27 +136,11 @@ class Cst_actions:
     def __init__(self, difficulty: Difficulty, cst_agent: Cst_agent):
         self.n_actions = 6 + 2 * difficulty.n_resources
 
-        self.control_walking_right = torch.tensor(
-            [0.]*difficulty.n_resources + [0.01, 0., cst_agent.walking_speed, 0.])
-        self.control_walking_left = torch.tensor(
-            [0.]*difficulty.n_resources + [0.01, 0., -cst_agent.walking_speed, 0.])
-        self.control_walking_up = torch.tensor(
-            [0.]*difficulty.n_resources + [0.01, 0., 0., cst_agent.walking_speed])
-        self.control_walking_down = torch.tensor(
-            [0.]*difficulty.n_resources + [0.01, 0., 0., -cst_agent.walking_speed])
+        self.fatigue_walking = 0.01
 
-        self.control_sleeping = torch.tensor(
-            [0.]*difficulty.n_resources + [0., -0.001, 0., 0.])
+        self.recover_sleeping = -0.001
 
-        self.control_doing_nothing = torch.tensor([0.]*cst_agent.zeta_shape)
-
-        self.controls_consuming_resource = [
-            torch.tensor([0 if i != res else 0.1 for i in range(cst_agent.zeta_shape)])
-            for res in range(difficulty.n_resources)
-        ]
-
-        self.control_going_to_resource = torch.tensor(
-            [0.]*difficulty.n_resources + [0.01, 0., 0., 0.])
+        self.consumption_resource = 0.1
 
         self.default_action = "doing_nothing"
 

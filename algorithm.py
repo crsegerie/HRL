@@ -1,6 +1,6 @@
 from hyperparam import Hyperparam
 from environment import Environment
-from agent import Agent, Zeta
+from agent import Agent, HomogeneousZeta
 from actions import Actions
 from nets import Net_J, Net_f
 from plots import Plots
@@ -32,9 +32,9 @@ class Algorithm:
 
         # TODO: ATTENTION AU DEEP COPY, si on met directement self.agent.zeta
         # au lieu de zeta_init (avec ou sans clone), ça ne marche pas
-        zeta_init = Zeta(self.hp)
+        zeta_init = HomogeneousZeta(self.hp)
         zeta_init.tensor = self.agent.zeta.tensor#.clone()
-        self.historic_zeta: List[Zeta] = [zeta_init]
+        self.historic_zeta: List[HomogeneousZeta] = [zeta_init]
         self.historic_actions = []
         self.historic_losses = []  # will contain a list of 2d [L_f, L_J]
 
@@ -92,7 +92,7 @@ class Algorithm:
         # requires_grad of the parameters you want to freeze to False.
         f = self.net_f.forward(zeta_u).detach()
         new_zeta_tensor = _zeta_tensor + self.hp.cst_algo.time_step * f
-        new_zeta = Zeta(self.hp)
+        new_zeta = HomogeneousZeta(self.hp)
         new_zeta.tensor = new_zeta_tensor
         instant_reward = self.agent.drive(new_zeta)
         grad_ = torch.autograd.grad(
@@ -152,7 +152,7 @@ class Algorithm:
             [_zeta, torch.zeros(self.hp.cst_actions.n_actions)])
         zeta_u[len(_zeta) + action] = 1
 
-        new_zeta = Zeta(self.hp)
+        new_zeta = HomogeneousZeta(self.hp)
         new_zeta.tensor = self.actions.df.loc[action, "new_state"](self.agent, self.env).tensor
         _new_zeta = new_zeta.tensor
 
@@ -176,7 +176,7 @@ class Algorithm:
         # and long-term improvements are in the same direction)
 
         # futur drive = d(\zeta_t, u_a) = 0.9
-        new_zeta = Zeta(self.hp)
+        new_zeta = HomogeneousZeta(self.hp)
         new_zeta.tensor = _new_zeta
         instant_drive = self.agent.drive(new_zeta)
 
