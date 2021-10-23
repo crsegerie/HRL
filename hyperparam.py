@@ -106,10 +106,22 @@ class Cst_agent:
         self.x_star = x_star_4_resources \
             if difficulty.n_resources == 4 else x_star_2_resources
 
-        # Parameters of the function f
-        # Resources 1, 2, 3 and 4, muscular fatigue, aware energy, x, y
-        self.coef_hertz = torch.Tensor(
-            [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
+        # Homeostatic setpoint
+        val_x_star = {}
+        for i in range(difficulty.n_resources):
+            val_x_star[f"resource_{i}"] = i + 1
+        val_x_star["muscular_fatigue"] = 0
+        val_x_star["sleep_fatigue"] = 0
+        self.val_x_star = val_x_star
+
+        # Coefficients of the function f related to the
+        # differential equation
+        val_coeff_eq_diff = {}
+        for i in range(difficulty.n_resources):
+            val_coeff_eq_diff[f"resource_{i}"] = -0.05
+        val_coeff_eq_diff["muscular_fatigue"] = -0.008
+        val_coeff_eq_diff["sleep_fatigue"] = 0.0005
+        self.val_coeff_eq_diff = val_coeff_eq_diff
 
         self.walking_speed = 0.1
 

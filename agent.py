@@ -73,12 +73,24 @@ class Agent:
         """
         self.hp = hyperparam
 
-        # Setting initial position
         self.zeta = HomogeneousZeta(self.hp)
+        # Setting initial position
         self.zeta.x = self.hp.cst_agent.default_pos_x
         self.zeta.y = self.hp.cst_agent.default_pos_y
         self.zeta.muscular_fatigue = self.hp.cst_agent.min_resource
         self.zeta.sleep_fatigue = self.hp.cst_agent.min_resource
+
+        def set_val_homeo(dic_val):
+            homo_zeta = HomogeneousZeta(self.hp)
+            for res in range(self.hp.difficulty.n_resources):
+                homo_zeta.set_resource(res, dic_val[f"resource_{res}"])
+            homo_zeta.muscular_fatigue = dic_val["muscular_fatigue"]
+            homo_zeta.sleep_fatigue = dic_val["sleep_fatigue"]
+            return homo_zeta
+        
+        self.x_star = set_val_homeo(self.hp.cst_agent.val_x_star)
+
+        self.coeff_eq_diff = set_val_homeo(self.hp.cst_agent.val_coeff_eq_diff)
 
     def drive(self, zeta: HomogeneousZeta, epsilon: float = 0.001) -> float:
         """
@@ -96,7 +108,7 @@ class Agent:
         Return the Agent's dynamics which is represented by the f function.
         """
         f = HomogeneousZeta(self.hp)
-        f.homeostatic = (self.hp.cst_agent.coef_hertz + u.homeostatic) * \
+        f.homeostatic = (self.coeff_eq_diff.homeostatic + u.homeostatic) * \
             (zeta.homeostatic + self.hp.cst_agent.x_star)
         f.non_homeostatic = u.non_homeostatic
         return f
@@ -119,7 +131,7 @@ class Agent:
         such as going direclty to one of the resource.
         """
         x = zeta.homeostatic + self.hp.cst_agent.x_star
-        rate = self.hp.cst_agent.coef_hertz + control.homeostatic
+        rate = self.coeff_eq_diff.homeostatic + control.homeostatic
         new_x = x * torch.exp(rate * duration)
         new_zeta_homeo = new_x - self.hp.cst_agent.x_star
 
