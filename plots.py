@@ -25,13 +25,8 @@ class Plots:
         """Plot the resource historic as a function of time.
         x-axis is step and not time.
         """
-        zeta_meaning = [f"resource_{i}" for i in range(self.hp.difficulty.n_resources)] + \
-            [
-            "muscular energy",
-            "aware energy",
-            "x",
-            "y",
-        ]
+        zeta_shape = self.hp.cst_agent.zeta_shape
+        zeta_meaning = list(self.hp.cst_agent.features_to_index.keys())[:zeta_shape]
 
         historic_zeta_tensor = [zeta.tensor.detach(
         ).numpy() for zeta in historic_zeta[:frame+1]]
@@ -111,11 +106,13 @@ class Plots:
                     # We are at the optimum for three out of the 4 resources
                     # but one resources varies alongside with the coordinates.
                     # No muscular nor sleep fatigues.
-                    zeta = torch.Tensor(
-                        [0.] * self.hp.difficulty.n_resources + [0., 0., i/scale, j/scale])
-                    zeta[resource_id] = -self.hp.cst_agent.x_star[resource_id]
+                    zeta = Zeta(self.hp)
+                    zeta.x = i/scale
+                    zeta.y = j/scale
+                    zeta.set_resource(resource_id, -self.hp.cst_agent.x_star[resource_id])
+                    
                     with torch.no_grad():
-                        values[i, j] = net_J(zeta).detach().numpy()
+                        values[i, j] = net_J(zeta.tensor).detach().numpy()
 
         im = ax.imshow(X=values.T, cmap="YlGnBu", norm=Normalize())
         ax.axis('off')

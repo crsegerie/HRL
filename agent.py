@@ -3,7 +3,7 @@ import torch
 
 
 class Zeta:
-    """State (internal + external) of the agent."""
+    """Homogeneous to the state (internal + external) of the agent."""
     def __init__(self, hyperparam: Hyperparam) -> None:
         self.hp = hyperparam
         self.tensor = torch.zeros(self.hp.cst_agent.zeta_shape)
