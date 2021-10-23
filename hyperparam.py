@@ -80,8 +80,6 @@ class Cst_env:
         self.height = np.max(coord_env_y) - np.min(coord_env_y)
 
 
-TensorTorch = type(torch.Tensor())
-
 class Cst_agent:
     def __init__(self, difficulty: Difficulty):
         self.default_pos_x = 2
@@ -95,6 +93,8 @@ class Cst_agent:
         features_to_index["x"] = difficulty.n_resources + 2
         features_to_index["y"] = difficulty.n_resources + 3
         features_to_index["homeostatic"] = [i for i in range(difficulty.n_resources + 2)]
+        features_to_index["non_homeostatic"] = [i for i in range(difficulty.n_resources + 2,
+                                                                 difficulty.n_resources + 4)]
         self.features_to_index = features_to_index
 
         self.zeta_shape = difficulty.n_resources + 4 # muscular, aware, x, y
@@ -103,12 +103,12 @@ class Cst_agent:
         # Resources 1, 2, 3 and 4, muscular fatigue, aware energy
         x_star_4_resources = torch.Tensor([1, 2, 3, 4, 0, 0])
         x_star_2_resources = torch.Tensor([1, 2, 0, 0])
-        self.x_star: TensorTorch = x_star_4_resources \
+        self.x_star = x_star_4_resources \
             if difficulty.n_resources == 4 else x_star_2_resources
 
         # Parameters of the function f
         # Resources 1, 2, 3 and 4, muscular fatigue, aware energy, x, y
-        self.coef_hertz: TensorTorch = torch.Tensor(
+        self.coef_hertz = torch.Tensor(
             [-0.05]*difficulty.n_resources +[-0.008, 0.0005])
 
         self.walking_speed = 0.1

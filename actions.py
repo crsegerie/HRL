@@ -32,26 +32,26 @@ class Actions:
                 control_walking_right = HomogeneousZeta(self.hp)
                 control_walking_right.muscular_fatigue = self.hp.cst_actions.fatigue_walking
                 control_walking_right.x = self.hp.cst_agent.walking_speed
-                control_walking = control_walking_right.tensor
+                control_walking = control_walking_right
             elif direction == 'left':
                 control_walking_left = HomogeneousZeta(self.hp)
                 control_walking_left.muscular_fatigue = self.hp.cst_actions.fatigue_walking
                 control_walking_left.x = -self.hp.cst_agent.walking_speed
-                control_walking = control_walking_left.tensor
+                control_walking = control_walking_left
             elif direction == 'up':
                 control_walking_up = HomogeneousZeta(self.hp)
                 control_walking_up.muscular_fatigue = self.hp.cst_actions.fatigue_walking
                 control_walking_up.y = self.hp.cst_agent.walking_speed
-                control_walking = control_walking_up.tensor
+                control_walking = control_walking_up
             elif direction == 'down':
                 control_walking_down = HomogeneousZeta(self.hp)
                 control_walking_down.muscular_fatigue = self.hp.cst_actions.fatigue_walking
                 control_walking_down.y = -self.hp.cst_agent.walking_speed
-                control_walking = control_walking_down.tensor
+                control_walking = control_walking_down
 
             def new_state_walking(agent: Agent, env: Environment) -> HomogeneousZeta:
                 new_zeta = HomogeneousZeta(self.hp)
-                new_zeta.tensor = agent.euler_method(agent.zeta, control_walking)
+                new_zeta.tensor = agent.euler_method(agent.zeta, control_walking).tensor
                 return new_zeta
 
             def constraints_walking(agent: Agent, env: Environment) -> bool:
@@ -80,11 +80,10 @@ class Actions:
         def new_state_sleeping(agent: Agent, env: Environment) -> HomogeneousZeta:
             control_sleeping = HomogeneousZeta(self.hp)
             control_sleeping.sleep_fatigue = self.hp.cst_actions.recover_sleeping
-            control_sleeping = control_sleeping.tensor
             duration_sleep = self.hp.cst_agent.n_min_time_sleep * self.hp.cst_algo.time_step
             new_zeta = HomogeneousZeta(self.hp)
             new_zeta.tensor = agent.integrate_multiple_steps(
-                duration_sleep, agent.zeta, control_sleeping)
+                duration_sleep, agent.zeta, control_sleeping).tensor
             return new_zeta
 
         def constraints_sleeping(agent: Agent, env: Environment) -> bool:
@@ -102,9 +101,9 @@ class Actions:
         # ACTION OF DOING NOTHING
 
         def new_state_doing_nothing(agent: Agent, env: Environment) -> HomogeneousZeta:
-            control_doing_nothing = HomogeneousZeta(self.hp).tensor
+            control_doing_nothing = HomogeneousZeta(self.hp)
             new_zeta = HomogeneousZeta(self.hp)
-            new_zeta.tensor = agent.euler_method(agent.zeta, control_doing_nothing)
+            new_zeta.tensor = agent.euler_method(agent.zeta, control_doing_nothing).tensor
             return new_zeta
 
         def constraints_doing_nothing(agent: Agent, env: Environment) -> bool:
@@ -128,9 +127,8 @@ class Actions:
                 def new_state_consuming_resource(agent: Agent, env: Environment) -> HomogeneousZeta:
                     control_consuming_resource = HomogeneousZeta(self.hp)
                     control_consuming_resource.set_resource(res, self.hp.cst_actions.consumption_resource)
-                    control_consuming_resource = control_consuming_resource.tensor
                     new_zeta = HomogeneousZeta(self.hp)
-                    new_zeta.tensor = agent.euler_method(agent.zeta, control_consuming_resource)
+                    new_zeta.tensor = agent.euler_method(agent.zeta, control_consuming_resource).tensor
                     return new_zeta
 
                 def constraints_consuming_resource(agent: Agent, env: Environment) -> bool:
@@ -162,13 +160,12 @@ class Actions:
                 def new_state_going_to_resource(agent: Agent, env: Environment) -> HomogeneousZeta:
                     control_going_to_resource = HomogeneousZeta(self.hp)
                     control_going_to_resource.muscular_fatigue = self.hp.cst_actions.fatigue_walking
-                    control_going_to_resource = control_going_to_resource.tensor
                     dist = env.distance_to_resource(agent.zeta.x, agent.zeta.y, res)
                     duration_walking = dist * self.hp.cst_algo.time_step / self.hp.cst_agent.walking_speed
 
                     new_zeta = HomogeneousZeta(self.hp)
                     new_zeta.tensor = agent.integrate_multiple_steps(
-                        duration_walking, agent.zeta, control_going_to_resource)
+                        duration_walking, agent.zeta, control_going_to_resource).tensor
                     new_zeta.x = self.hp.cst_env.resources[res].x
                     new_zeta.y = self.hp.cst_env.resources[res].y
 

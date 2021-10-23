@@ -201,10 +201,10 @@ class Algorithm:
 
         self.agent.zeta.tensor = _new_zeta
 
-        for i in range(self.agent.zeta.n_homeostatic):
-            # zeta = x - x_star
-            if self.agent.zeta.tensor[i] + self.hp.cst_agent.x_star[i] < self.hp.cst_agent.min_resource:
-                self.agent.zeta.tensor[i] = -self.hp.cst_agent.x_star[i] + self.hp.cst_agent.min_resource
+        x_homeo = self.agent.zeta.homeostatic + self.hp.cst_agent.x_star
+        is_below_min = x_homeo < self.hp.cst_agent.min_resource
+        min_zeta_homeo = -self.hp.cst_agent.x_star + self.hp.cst_agent.min_resource
+        self.agent.zeta.homeostatic[is_below_min] = min_zeta_homeo[is_below_min]
 
         loss = np.array([Loss_f.detach().numpy(), Loss_J.detach().numpy()[0]])
 

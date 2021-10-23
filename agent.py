@@ -1,14 +1,14 @@
-from hyperparam import Hyperparam, TensorTorch
+from hyperparam import Hyperparam
 import torch
 
+
+TensorTorch = type(torch.Tensor())
 
 class HomogeneousZeta:
     """Homogeneous to the state (internal + external) of the agent."""
     def __init__(self, hyperparam: Hyperparam) -> None:
         self.hp = hyperparam
         self.tensor = torch.zeros(self.hp.cst_agent.zeta_shape)
-
-        self.n_homeostatic = self.hp.difficulty.n_resources + 2
 
     def get_resource(self, res: int):
         assert res < self.hp.difficulty.n_resources
@@ -58,6 +58,14 @@ class HomogeneousZeta:
     def homeostatic(self, val: TensorTorch) -> None:
         self.tensor[self.hp.cst_agent.features_to_index["homeostatic"]] = val
 
+    @property
+    def non_homeostatic(self) -> TensorTorch:
+        return self.tensor[self.hp.cst_agent.features_to_index["non_homeostatic"]]
+
+    @non_homeostatic.setter
+    def non_homeostatic(self, val: TensorTorch) -> None:
+        self.tensor[self.hp.cst_agent.features_to_index["non_homeostatic"]] = val
+
 
 class Agent:
     def __init__(self, hyperparam: Hyperparam):
@@ -72,90 +80,51 @@ class Agent:
         self.zeta.muscular_fatigue = self.hp.cst_agent.min_resource
         self.zeta.sleep_fatigue = self.hp.cst_agent.min_resource
 
-    def drive(self, zeta: HomogeneousZeta, epsilon: float = 0.001):
+    def drive(self, zeta: HomogeneousZeta, epsilon: float = 0.001) -> float:
         """
         Return the Agent's drive which is the distance between the agent's 
         state and the homeostatic set point.
-        ...
-
-        Variables
-        ---------
-        zeta: torch.tensor
-            whole world state.
-        u: torch.tensor
-            control. (freewill of the agent)
         """
         # in the delta, we only count the internal state.
         # The tree last coordinate do not count in the homeostatic set point.
         delta = zeta.homeostatic
-        drive_delta = torch.sqrt(epsilon + torch.dot(delta, delta))
+        drive_delta = float(torch.sqrt(epsilon + torch.dot(delta, delta)))
         return drive_delta
         
-    def dynamics(self, zeta: HomogeneousZeta, u: TensorTorch):
+    def dynamics(self, zeta: HomogeneousZeta, u: HomogeneousZeta) -> HomogeneousZeta:
         """
         Return the Agent's dynamics which is represented by the f function.
-
-        Variables
-        ---------
-        zeta: torch.tensor
-            whole world state.
-        u: torch.tensor
-            control. (freewill of the agent)
         """
-        f = torch.zeros(self.hp.cst_agent.zeta_shape)
-        # Those first coordinates are homeostatic, and with a null control,
-        # zeta tends to zero.
-
-        f[:zeta.n_homeostatic] = (self.hp.cst_agent.coef_hertz + u[:zeta.n_homeostatic]) * \
+        f = HomogeneousZeta(self.hp)
+        f.homeostatic = (self.hp.cst_agent.coef_hertz + u.homeostatic) * \
             (zeta.homeostatic + self.hp.cst_agent.x_star)
-
-        # Those coordinates are not homeostatic : they represent the x-speed,
-        # y-speed, and angular-speed.
-        # The agent can choose himself his speed.
-        f[zeta.n_homeostatic:] = u[zeta.n_homeostatic:]
+        f.non_homeostatic = u.non_homeostatic
         return f
 
-    def euler_method(self, zeta: HomogeneousZeta, u: TensorTorch) -> TensorTorch:
+    def euler_method(self, zeta: HomogeneousZeta, u: HomogeneousZeta) -> HomogeneousZeta:
         """Euler method for tiny time steps.
-
-        Parameters
-        ----------
-        zeta: torch.tensor
-            whole world state.
-        u: torch.tensor
-            control. (freewill of the agent)
-
-        Returns:
-        --------
-        The updated zeta.
         """
-        delta_zeta = self.hp.cst_algo.time_step * self.dynamics(zeta, u)
-        new_zeta = zeta.tensor + delta_zeta
+        new_zeta = HomogeneousZeta(self.hp)
+        delta_zeta = self.hp.cst_algo.time_step * self.dynamics(zeta, u).tensor
+        new_zeta.tensor = zeta.tensor + delta_zeta
         return new_zeta
 
-    def integrate_multiple_steps(self, duration: float, zeta: HomogeneousZeta, control: TensorTorch):
+    def integrate_multiple_steps(self,
+                                 duration: float,
+                                 zeta: HomogeneousZeta,
+                                 control: HomogeneousZeta) -> HomogeneousZeta:
         """We integrate rigorously with an exponential over 
         long time period the differential equation.
-
         This function is usefull in the case of big actions, 
         such as going direclty to one of the resource.
-
-        PARAMETER:
-        ----------
-        duration:
-            duration of time to integrate over.
-        zeta: torch.tensor
-            whole world state.
-        u: torch.tensor
-            control. (freewill of the agent)
-
-        RETURNS:
-        -------
-        new_zeta. The updated zeta."""
+        """
         x = zeta.homeostatic + self.hp.cst_agent.x_star
-        rate = self.hp.cst_agent.coef_hertz + control[:zeta.n_homeostatic]
+        rate = self.hp.cst_agent.coef_hertz + control.homeostatic
         new_x = x * torch.exp(rate * duration)
-        new_zeta = zeta.tensor.clone()
-        new_zeta[:zeta.n_homeostatic] = new_x - self.hp.cst_agent.x_star
+        new_zeta_homeo = new_x - self.hp.cst_agent.x_star
+
+        new_zeta = HomogeneousZeta(self.hp)
+        new_zeta.homeostatic = new_zeta_homeo
+        new_zeta.non_homeostatic = zeta.non_homeostatic.clone()
         return new_zeta
 
